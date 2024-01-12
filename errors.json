@@ -1,0 +1,9 @@
+{
+    "0": "error 0",
+    "1": "error 1",
+    "2": "error 2",
+    "3": "string formatting error. String constants must be between pair of singular quotes like : 'string constant'",
+    "4": "wrong variable name. Must start with letter, may have digits, letters and underscore _",
+    "5": "unrecognized symbol",
+    "6": "floating point must have one dot symbol ."
+}
