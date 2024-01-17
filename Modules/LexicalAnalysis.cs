@@ -17,12 +17,15 @@ public class LexicalAnalysis
     public byte Symbol;
     public string SymbolValue;
     public InputOutput InputOutput { get; }
-    void SkipComments(){
-        if(InputOutput.EOF) return; 
-        if(InputOutput.CurrentLine == "") return;
+    bool SkipComments(){
+        if(InputOutput.EOF) return false; 
+        if(InputOutput.CurrentLine == "") return false;
         var isCommentLine =  InputOutput.Char=='/' && InputOutput.PeekChar=='/';
-        if(isCommentLine)
+        if(isCommentLine){
             InputOutput.NextLine();
+            return true;
+        }
+        return false;
     }
     public void NextSym()
     {
@@ -30,9 +33,10 @@ public class LexicalAnalysis
 
         bool condition() => !InputOutput.EOF && (InputOutput.CurrentLine == "" || InputOutput.Char == ' ' || InputOutput.Char == '\t');
         while (condition()) InputOutput.NextChar();
-        SkipComments();
-        while (condition()) InputOutput.NextChar();
-
+        if(SkipComments()){
+            NextSym();
+            return;
+        }
 
         Token.CharNumber = InputOutput.Pos.CharNumber;
         Token.LineNumber = InputOutput.Pos.LineNumber;
