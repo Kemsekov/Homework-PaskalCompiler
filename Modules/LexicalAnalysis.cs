@@ -15,7 +15,6 @@ public class LexicalAnalysis
         };
     }
     public TextPosition Token;
-    public IDictionary<int, string> VariableNames;
     public byte Symbol;
     public string SymbolValue;
     public InputOutput InputOutput { get; }
@@ -116,7 +115,6 @@ public class LexicalAnalysis
                 {
                     Symbol = (byte)sym;
                     //save variable name
-                    VariableNames[substring.GetHashCode()] = substring;
                     break;
                 }
                 //else add error
