@@ -15,7 +15,7 @@ public class LexicalAnalysis
     }
     public TextPosition Token;
     public byte Symbol;
-    public string SymbolValue;
+    public string SymbolValue="";
     public InputOutput InputOutput { get; }
     bool SkipComments(){
         if(InputOutput.EOF) return false; 
