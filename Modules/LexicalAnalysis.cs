@@ -7,7 +7,6 @@ public class LexicalAnalysis
     public LexicalAnalysis(InputOutput inputOutput)
     {
         InputOutput = inputOutput;
-        VariableNames = new ConcurrentDictionary<int, string>();
         Token = new()
         {
             CharNumber = 0,
@@ -18,10 +17,22 @@ public class LexicalAnalysis
     public byte Symbol;
     public string SymbolValue;
     public InputOutput InputOutput { get; }
+    void SkipComments(){
+        if(InputOutput.EOF) return; 
+        if(InputOutput.CurrentLine == "") return;
+        var isCommentLine =  InputOutput.Char=='/' && InputOutput.PeekChar=='/';
+        if(isCommentLine)
+            InputOutput.NextLine();
+    }
     public void NextSym()
     {
-        bool condition() => !InputOutput.EOF && (InputOutput.CurrentLine == "" || InputOutput.Char == ' ');
+        //add constants check
+
+        bool condition() => !InputOutput.EOF && (InputOutput.CurrentLine == "" || InputOutput.Char == ' ' || InputOutput.Char == '\t');
         while (condition()) InputOutput.NextChar();
+        SkipComments();
+        while (condition()) InputOutput.NextChar();
+
 
         Token.CharNumber = InputOutput.Pos.CharNumber;
         Token.LineNumber = InputOutput.Pos.LineNumber;
@@ -198,6 +209,7 @@ public class LexicalAnalysis
                 InputOutput.NextChar();
         }
         SymbolValue = substring;
+        
         // now pray to God that everything works
         // System.Console.WriteLine(substring);
     }

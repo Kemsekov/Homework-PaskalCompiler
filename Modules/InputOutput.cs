@@ -30,16 +30,38 @@ public class InputOutput
     /// <summary>
     /// Current line on position <see cref="Pos"/> 
     /// </summary>
-    public string CurrentLine{get;protected set;}
+    public string CurrentLine { get; protected set; }
     /// <summary>
     /// Current pos char
     /// </summary>
     public char Char => CurrentLine[Pos.CharNumber];
     /// <summary>
+    /// Peek one char forward, or null if current char is last in the line
+    /// </summary>
+    public char? PeekChar =>Pos.CharNumber+1<CurrentLine.Length ? CurrentLine[Pos.CharNumber+1] : null;
+    /// <summary>
     /// End of file flag
     /// </summary>
-    public bool EOF{get;private set;} = false;
-    public ulong ErrorsCounter{get;private set;} = 0;
+    public bool EOF { get; private set; } = false;
+    public ulong ErrorsCounter { get; private set; } = 0;
+
+    /// <summary>
+    /// Skips current line and switches to next line. Use if for example if you need to skip comments for example
+    /// </summary>
+    public void NextLine()
+    {
+        if (Pos.LineNumber < (ulong)Program.Lines.Length - 1)
+        {
+            Pos.LineNumber++;
+            Pos.CharNumber = 0;
+            CurrentLine = Program.Lines[Pos.LineNumber];
+        }
+        else
+        {
+            EOF = true;
+            return;
+        }
+    }
 
     public void NextChar()
     {
@@ -51,18 +73,10 @@ public class InputOutput
             }
 
             CurrentLine = "";
-            while (string.IsNullOrEmpty(CurrentLine) || string.IsNullOrWhiteSpace(CurrentLine))
-                if (Pos.LineNumber < (ulong)Program.Lines.Length - 1)
-                {
-                    Pos.LineNumber++;
-                    Pos.CharNumber = 0;
-                    CurrentLine = Program.Lines[Pos.LineNumber];
-                }
-                else
-                {
-                    EOF = true;
-                    return;
-                }
+            while (string.IsNullOrEmpty(CurrentLine) || string.IsNullOrWhiteSpace(CurrentLine)){
+                NextLine();
+                if(EOF) break;
+            }
         }
         else
             Pos.CharNumber++;
@@ -85,7 +99,7 @@ public class InputOutput
         var errors = Errors[Pos.LineNumber];
         foreach (var e in errors)
         {
-            if(ErrorsCounter >= Variables.ERRMAX) break;
+            if (ErrorsCounter >= Variables.ERRMAX) break;
 
             Console.ForegroundColor = ConsoleColor.Red;
             System.Console.WriteLine($"Error on line {Pos.LineNumber}");
@@ -103,5 +117,5 @@ public class InputOutput
             ErrorsCounter++;
         }
     }
-    
+
 }
