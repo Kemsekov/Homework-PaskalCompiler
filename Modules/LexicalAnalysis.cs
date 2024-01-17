@@ -131,13 +131,23 @@ public class LexicalAnalysis
             if (InputOutput.Char == '\'')
             {
                 //search for closing \' symbol and check for string constant
+                var count = 0;
                 var name =
                 new string(
                     currentLine
                     .Skip(charNumber)
-                    .TakeWhile(c => c != '\'')
+                    .TakeWhile(c =>{
+                        if( c == '\''){
+                            count++;
+                            if(count==2)
+                            return true;
+                        }
+                        return count<2;
+                    })
                     .ToArray()
                 );
+                substring = name;
+
                 //check if it is string constant
                 var sym = Keywords.SearchStringConstant(name, out errorCode);
                 if (errorCode < 0 && sym is not null)
