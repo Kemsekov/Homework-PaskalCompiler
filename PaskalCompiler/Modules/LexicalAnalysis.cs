@@ -11,6 +11,7 @@ using System.Text;
 // add test that it recognizes float constants
 //      1. Marks bad formatted float as undefined
 //      2. Creates error for bad formatted floats
+//      3. Recognize format like 5.32e-15 2.3e14
 
 // add test that it handles string constants
 //      1. unclosed string errors
@@ -151,7 +152,6 @@ public class LexicalAnalysis
         //find and handle all allowed symbols
         for (; ; )
         {
-            // if (char.IsDigit(InputOutput.Char) || (InputOutput.Char=='.' && char.IsDigit(nextChar)))
             if (char.IsDigit(InputOutput.Char))
             {
                 //take until Char.IsDigit or .

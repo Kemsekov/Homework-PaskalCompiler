@@ -160,7 +160,7 @@ public static class Keywords
         }
 
         if(!dotCount){
-            errorCode=6;
+            errorCode= (long)ErrorCodes.FloatConstantError;
             return Lexical.undefined; //floating point must have one dot symbol .
         }
         return Lexical.floatc;

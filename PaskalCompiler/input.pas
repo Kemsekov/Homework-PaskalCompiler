@@ -5,6 +5,7 @@ var a :Int,
     c : String;
 
 begin
+    b:=2.3e-5
     fine_int_c := 234
     overflow_int_c:=-102039
 
