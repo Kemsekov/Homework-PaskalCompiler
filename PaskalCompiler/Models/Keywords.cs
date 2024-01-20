@@ -126,7 +126,7 @@ public static class Keywords
             if(word.Count(c=>c=='\'')==2)
                 return Lexical.stringc;
         }
-        errorCode=3;
+        errorCode=(long)ErrorCodes.StringFormatting;
         return Lexical.undefined; //wrong string formatting
     }
 
@@ -142,7 +142,7 @@ public static class Keywords
             if(word.All(c=>char.IsLetterOrDigit(c) || c=='_'))
                 return Lexical.ident;
         }
-        errorCode=4;
+        errorCode=(long)ErrorCodes.WrongVariableName;
         return Lexical.undefined; //wrong variable name formatting. Must have letters, digits and _
     }
     /// <summary>
@@ -155,7 +155,7 @@ public static class Keywords
         var dotCount = word.Count(c=>c=='.')==1;
 
         if(!formatting){
-            errorCode=5; //create ENUM
+            errorCode=(long)ErrorCodes.UnrecognizedSymbol;
             return Lexical.undefined; //unrecognized symbol
         }
 
@@ -173,7 +173,7 @@ public static class Keywords
         errorCode=-1;
         var formatting = word.All(char.IsDigit);
         if(!formatting){
-            errorCode=5;
+            errorCode= (long)ErrorCodes.UnrecognizedSymbol;
             return Lexical.undefined; //unrecognized symbol
         }
         return Lexical.intc;
@@ -192,7 +192,7 @@ public static class Keywords
         if(Kw[(byte)word.Length].TryGetValue(word,out var code))
             return code;
         
-        errorCode=8; //forbidden symbol
+        errorCode= (long)ErrorCodes.ForbiddenSymbol; //forbidden symbol
         return Lexical.undefined;
     }
 }

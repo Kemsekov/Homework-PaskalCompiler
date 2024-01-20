@@ -21,13 +21,14 @@ public class LexicalAnalysis
     public ConfigurationVariables Configuration { get; }
     public InputOutput InputOutput { get; }
     bool SkipComments(){
-
+        //this horrible piece of code finds comments and handles errors
+        //for their formatting. You'd better don't touch it
         if(InputOutput.EOF) return false; 
         if(InputOutput.CurrentLine == "") return false;
 
         if(InputOutput.Char=='}'){
             InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=10, //missing closing '}'
+                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment10, //missing closing '}'
                     Position=InputOutput.Pos
             });
             InputOutput.NextChar();
@@ -36,7 +37,7 @@ public class LexicalAnalysis
 
         if(InputOutput.Char=='*' && InputOutput.PeekChar==')'){
             InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=9, //missing closing '}'
+                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment9, //missing closing '}'
                     Position=InputOutput.Pos
             });
             InputOutput.NextChar();
@@ -60,7 +61,7 @@ public class LexicalAnalysis
             if(InputOutput.EOF){
                 InputOutput.SwitchPosition(startPos);
                 InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=9, //wrong comment formatting
+                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment9, //wrong comment formatting
                     Position=InputOutput.Pos
                 });
                 InputOutput.PrintErrorsOnCurrentLine();
@@ -82,7 +83,7 @@ public class LexicalAnalysis
             if(InputOutput.EOF){
                 InputOutput.SwitchPosition(startPos);
                 InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=10, //missing closing '}'
+                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment10, //missing closing '}'
                     Position=InputOutput.Pos
                 });
                 InputOutput.PrintErrorsOnCurrentLine();
@@ -120,6 +121,8 @@ public class LexicalAnalysis
         var nextChar = currentLine[Math.Min(charNumber+1,currentLine.Length-1)];
         var lineErrors = InputOutput.LineErrors(lineNumber);
         byte sym = Lexical.undefined;
+
+        //here I use once-executing loop to avoid using goto
         //find and handle all allowed symbols
         for (; ; )
         {
