@@ -101,10 +101,6 @@ public class LexicalAnalysis
         bool condition() => !InputOutput.EOF && (InputOutput.CurrentLine == "" || InputOutput.Char == ' ' || InputOutput.Char == '\t');
         while (condition()) InputOutput.NextChar();
 
-        if(InputOutput.Char=='@'){
-            var a = 1;
-        }
-
         Token.CharNumber = InputOutput.Pos.CharNumber;
         Token.LineNumber = InputOutput.Pos.LineNumber;
         var lineNumber = InputOutput.Pos.LineNumber;
