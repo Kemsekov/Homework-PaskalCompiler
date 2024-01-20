@@ -1,6 +1,30 @@
 using System.Collections.Concurrent;
 using System.Text;
 
+// TODO:
+// add test that it recognizes symbols of several good programs
+
+// add test that it gives errors on limitations on int constants overflow
+//      1. Marks overflow int as undefined symbol
+//      2. Add error on bad intc
+
+// add test that it recognizes float constants
+//      1. Marks bad formatted float as undefined
+//      2. Creates error for bad formatted floats
+
+// add test that it handles string constants
+//      1. unclosed string errors
+//      2. search for string constant
+//      3. marks unclosed string constants as undefined symbol
+
+// add tests for comments of all types '//' '{}' '(**)'
+//      1. Handles errors of unclosed comments in all
+//          program start, end, and in the middle of the code
+//      2. Skips symbols inside of comments
+
+// add tests that it marks as undefined all forbidden symbols such as '$#@!%|?'
+
+
 namespace Modules;
 public class LexicalAnalysis
 {
