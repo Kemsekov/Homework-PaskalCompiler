@@ -143,9 +143,7 @@ public class LexicalAnalysis
                 {
                     sym = Keywords.SearchFloatConstant(number, out errorCode);
                     if (errorCode < 0 )
-                    {
                         break;
-                    }
                 }
                 else
                 {
@@ -188,19 +186,12 @@ public class LexicalAnalysis
                 //check if it is keyword
                 sym = Keywords.SearchKeyword(name, out errorCode);
                 if (errorCode < 0 )
-                {
-                    Symbol = (byte)sym;
                     break;
-                }
 
                 //check if variable name
                 sym = Keywords.SearchVariable(name, out errorCode);
                 if (errorCode < 0 )
-                {
-                    Symbol = (byte)sym;
-                    //save variable name
                     break;
-                }
                 //else add error
                 lineErrors.Add(new Error()
                 {
@@ -233,10 +224,7 @@ public class LexicalAnalysis
                 //check if it is string constant
                 sym = Keywords.SearchStringConstant(name, out errorCode);
                 if (errorCode < 0 )
-                {
-                    Symbol = (byte)sym;
                     break;
-                }
                 //else add error
                 lineErrors.Add(new Error()
                 {
@@ -260,10 +248,7 @@ public class LexicalAnalysis
                 );
                 sym = Keywords.SearchKeyword(substring, out errorCode);
                 if (errorCode < 0 )
-                {
-                    Symbol = (byte)sym;
                     break;
-                }
             }
             //else add error
             if (errorCode >= 0)
