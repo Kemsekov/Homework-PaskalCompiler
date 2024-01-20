@@ -97,19 +97,20 @@ public class LexicalAnalysis
     }
     public void NextSym()
     {
-        if(InputOutput.EOF) return;
 
         bool condition() => !InputOutput.EOF && (InputOutput.CurrentLine == "" || InputOutput.Char == ' ' || InputOutput.Char == '\t');
         while (condition()) InputOutput.NextChar();
+        if(InputOutput.EOF) return;
+
+        if(SkipComments()){
+            NextSym();
+            return;
+        }
 
         Token.CharNumber = InputOutput.Pos.CharNumber;
         Token.LineNumber = InputOutput.Pos.LineNumber;
         var lineNumber = InputOutput.Pos.LineNumber;
         
-        if(SkipComments()){
-            NextSym();
-            return;
-        }
         //if our symbol is not string
         //accumulate current string characters into string until keywords search stops recognizing
         //input sequence as legal

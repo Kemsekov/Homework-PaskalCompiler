@@ -28,7 +28,7 @@ begin
 
     (* Short comment! *)
 
-    (* unclosed short comment!
+
 
 
     for I:=1 to 10 do a:=a*0.5;
@@ -41,4 +41,5 @@ begin
 end
 {
     Multiline unclosed comment
+(* unclosed short comment!
 
