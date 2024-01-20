@@ -21,6 +21,7 @@ public static class Keywords
         InverseKw = new ConcurrentDictionary<byte, string>();
 
         var tmp = new ConcurrentDictionary<string, byte>();
+
         tmp["*"] = Lexical.star;
         tmp["/"] = Lexical.slash;
         tmp["="] = Lexical.equal;
@@ -112,28 +113,28 @@ public static class Keywords
         InverseKw[Lexical.stringc]="stringc";
         InverseKw[Lexical.intc]="intc";
         InverseKw[Lexical.ident]="ident";
+        InverseKw[Lexical.undefined]="undefined";
     }
     
     /// <summary>
     /// Searches string constant in a word
     /// </summary>
     /// <returns>symbol if word is legal string constant, null + errorCode if not</returns>
-    public static byte? SearchStringConstant(string word,out long errorCode){
+    public static byte SearchStringConstant(string word,out long errorCode){
         errorCode=-1;
         if(word.Length>1 && word[0]=='\'' && word[^1]=='\''){
             if(word.Count(c=>c=='\'')==2)
                 return Lexical.stringc;
         }
         errorCode=3;
-        return null; //wrong string formatting
-
+        return Lexical.undefined; //wrong string formatting
     }
 
     /// <summary>
     /// Searches variable name in a word
     /// </summary>
     /// <returns>symbol if word is legal variable name, null + errorCode if not</returns>
-    public static byte? SearchVariable(string word,out long errorCode){
+    public static byte SearchVariable(string word,out long errorCode){
         errorCode=-1;
         //the only variants left is ident, floatc and intc
         //if first char is word, assume it is ident
@@ -142,25 +143,25 @@ public static class Keywords
                 return Lexical.ident;
         }
         errorCode=4;
-        return null; //wrong variable name formatting. Must have letters, digits and _
+        return Lexical.undefined; //wrong variable name formatting. Must have letters, digits and _
     }
     /// <summary>
     /// Searches float constant in a word
     /// </summary>
     /// <returns>symbol if word is legal float constant, null + errorCode if not</returns>
-    public static byte? SearchFloatConstant(string word,out long errorCode){
+    public static byte SearchFloatConstant(string word,out long errorCode){
         errorCode=-1;
         var formatting = word.All(c=>c=='.' || char.IsDigit(c));
         var dotCount = word.Count(c=>c=='.')==1;
 
         if(!formatting){
-            errorCode=5;
-            return null; //unrecognized symbol
+            errorCode=5; //create ENUM
+            return Lexical.undefined; //unrecognized symbol
         }
 
         if(!dotCount){
             errorCode=6;
-            return null; //floating point must have one dot symbol .
+            return Lexical.undefined; //floating point must have one dot symbol .
         }
         return Lexical.floatc;
     }
@@ -168,12 +169,12 @@ public static class Keywords
     /// Searches int constant in a word
     /// </summary>
     /// <returns>symbol if word is legal int constant, null + errorCode if not</returns>
-    public static byte? SearchIntConstant(string word,out long errorCode){
+    public static byte SearchIntConstant(string word,out long errorCode){
         errorCode=-1;
         var formatting = word.All(char.IsDigit);
         if(!formatting){
             errorCode=5;
-            return null; //unrecognized symbol
+            return Lexical.undefined; //unrecognized symbol
         }
         return Lexical.intc;
     }
@@ -183,14 +184,15 @@ public static class Keywords
     /// Searches for keyword code of given word
     /// </summary>
     /// <returns>symbol if word is legal keyword, null + errorCode if not</returns>
-    public static byte? SearchKeyword(string word,out long errorCode){
+    public static byte SearchKeyword(string word,out long errorCode){
         errorCode=-1;
-        if(word.Length==0) return null;
+        if(word.Length==0) return Lexical.undefined;
 
         if(word.Length <= MaxKeywordLength && word.Length >= MinKeywordLength)
         if(Kw[(byte)word.Length].TryGetValue(word,out var code))
             return code;
-        errorCode=5;
-        return null;
+        
+        errorCode=8; //forbidden symbol
+        return Lexical.undefined;
     }
 }

@@ -17,9 +17,9 @@ public static class AppInstance
         services.AddSingleton(s=>JsonErrorDescriptionsFactory.Create(File.ReadAllText("errors.json")));
         services.AddSingleton(s=>ProgramFileReader.ReadProgramFile(Args[0]));
         services.AddSingleton(s=>new ConfigurationVariables{
-            ERRMAX=ulong.Parse(Environment.GetEnvironmentVariable("ERRMAX") ?? "10"),
+            ERRMAX=ulong.Parse(Environment.GetEnvironmentVariable("ERRMAX") ?? "20"),
             MAXLINE = ulong.Parse(Environment.GetEnvironmentVariable("MAXLINE") ?? "2048"),
-            MAXINT = long.Parse(Environment.GetEnvironmentVariable("MAXINT") ?? int.MaxValue.ToString())
+            MAXINT = long.Parse(Environment.GetEnvironmentVariable("MAXINT") ?? Int16.MaxValue.ToString())
         });
         services.AddSingleton<InputOutput>();
         services.AddSingleton<LexicalAnalysis>();

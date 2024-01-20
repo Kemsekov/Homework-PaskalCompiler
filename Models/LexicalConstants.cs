@@ -4,6 +4,7 @@
 public static class Lexical
 {
     public const byte
+        undefined = 0,
         star = (byte)'*', // *
         slash = (byte)'/', // /
         equal = (byte)'=', // =

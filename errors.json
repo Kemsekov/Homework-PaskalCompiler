@@ -5,5 +5,9 @@
     "3": "string formatting error. String constants must be contained between pair of singular quotes like : 'string constant'",
     "4": "wrong variable name. Must start with letter, may have digits, letters and underscore _",
     "5": "unrecognized symbol",
-    "6": "floating point must have one dot symbol ."
+    "6": "floating point must have one dot symbol .",
+    "7": "int overflow",
+    "8": "forbidden symbol",
+    "9": "missing full enclosing '(*' to '*)' for comment",
+    "10": "missing full enclosing '{' to '}' for comment"
 }

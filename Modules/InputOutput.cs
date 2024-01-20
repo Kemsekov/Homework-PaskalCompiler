@@ -38,13 +38,28 @@ public class InputOutput
     /// <summary>
     /// Peek one char forward, or null if current char is last in the line
     /// </summary>
-    public char? PeekChar =>Pos.CharNumber+1<CurrentLine.Length ? CurrentLine[Pos.CharNumber+1] : null;
+    public char? PeekChar => Pos.CharNumber + 1 < CurrentLine.Length ? CurrentLine[Pos.CharNumber + 1] : null;
     /// <summary>
     /// End of file flag
     /// </summary>
     public bool EOF { get; private set; } = false;
     public ulong ErrorsCounter { get; private set; } = 0;
 
+    public IList<Error> LineErrors(ulong lineNumber)
+    {
+        if (Errors.TryGetValue(lineNumber, out var lineErrors))
+        {
+        }
+        else
+        {
+            lineErrors = Errors[lineNumber] = new List<Error>();
+        }
+        return lineErrors;
+    }
+    public IList<Error> LineErrors()
+    {
+        return LineErrors(Pos.LineNumber);
+    }
     /// <summary>
     /// Skips current line and switches to next line. Use if for example if you need to skip comments for example
     /// </summary>
@@ -62,24 +77,35 @@ public class InputOutput
             return;
         }
     }
-
+    public void PrintErrorsOnCurrentLine()
+    {
+        if (ErrorsCounter < Variables.ERRMAX && IsErrorOnLine())
+        {
+            ListErrors();
+        }
+    }
     public void NextChar()
     {
         if (Pos.CharNumber >= CurrentLine.Length - 1)
         {
-            if (ErrorsCounter < Variables.ERRMAX && IsErrorOnLine())
-            {
-                ListErrors();
-            }
-
+            PrintErrorsOnCurrentLine();
             CurrentLine = "";
-            while (string.IsNullOrEmpty(CurrentLine) || string.IsNullOrWhiteSpace(CurrentLine)){
+            while (string.IsNullOrEmpty(CurrentLine) || string.IsNullOrWhiteSpace(CurrentLine))
+            {
                 NextLine();
-                if(EOF) break;
+                if (EOF) break;
             }
         }
         else
             Pos.CharNumber++;
+    }
+    public void SwitchPosition(TextPosition pos){
+        Pos = pos;
+        CurrentLine = Program.Lines[pos.LineNumber];
+        var lastLine = Program.Lines[^1];
+        if(pos.LineNumber!=(ulong)(Program.Lines.Length-1) && pos.CharNumber!=lastLine.Length-1){
+            EOF=false;
+        }
     }
     /// <returns>
     /// True if under current pos line some error is found
