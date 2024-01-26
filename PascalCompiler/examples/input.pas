@@ -42,5 +42,6 @@ begin
 end
 {
     Multiline unclosed comment
+    a:=3
 (* unclosed short comment!
 

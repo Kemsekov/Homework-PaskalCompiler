@@ -1,5 +1,5 @@
 /// <summary>
-/// Contains constants for paskal symbols
+/// Contains constants for Pascal symbols
 /// </summary>
 public static class Lexical
 {
