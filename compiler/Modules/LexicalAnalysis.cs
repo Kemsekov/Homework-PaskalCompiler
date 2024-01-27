@@ -83,7 +83,6 @@ public class LexicalAnalysis
                     ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment9, //wrong comment formatting
                     Position=InputOutput.Pos
                 });
-                InputOutput.PrintErrorsOnCurrentLine();
                 InputOutput.NextLine();
             }
             else{
@@ -105,7 +104,6 @@ public class LexicalAnalysis
                     ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment10, //missing closing '}'
                     Position=InputOutput.Pos
                 });
-                InputOutput.PrintErrorsOnCurrentLine();
                 InputOutput.NextLine();
             }
             else

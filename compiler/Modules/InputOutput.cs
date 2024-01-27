@@ -43,8 +43,18 @@ public class InputOutput
     /// End of file flag
     /// </summary>
     public bool EOF { get; private set; } = false;
+    /// <summary>
+    /// True when call of <see cref="NextChar"/> moves cursor to new line 
+    /// </summary>
+    public bool IsNewLine{get;private set;} = false;
+    /// <summary>
+    /// Total errors counter
+    /// </summary>
     public ulong ErrorsCounter { get; private set; } = 0;
 
+    /// <summary>
+    /// A list of errors on a specified line
+    /// </summary>
     public IList<Error> LineErrors(ulong lineNumber)
     {
         if (Errors.TryGetValue(lineNumber, out var lineErrors))
@@ -56,6 +66,9 @@ public class InputOutput
         }
         return lineErrors;
     }
+    /// <summary>
+    /// A list of errors on a current line
+    /// </summary>
     public IList<Error> LineErrors()
     {
         return LineErrors(Pos.LineNumber);
@@ -76,19 +89,25 @@ public class InputOutput
             EOF = true;
         }
     }
-    public int PrintErrorsOnCurrentLine()
+    /// <summary>
+    /// Prints errors under given line
+    /// </summary>
+    /// <param name="line">Sets to current line if not specified</param>
+    public int PrintErrorsOnLine(ulong line = ulong.MaxValue)
     {
-        if (ErrorsCounter < Variables.ERRMAX && IsErrorOnLine())
+        line = line==ulong.MaxValue ? Pos.LineNumber : line;
+        if (ErrorsCounter < Variables.ERRMAX && IsErrorOnLine(line))
         {
-            return ListErrors();
+            return ListErrors(line);
         }
         return 0;
     }
     public void NextChar()
     {
+        IsNewLine=false;
         if (Pos.CharNumber >= CurrentLine.Length - 1)
         {
-            PrintErrorsOnCurrentLine();
+            IsNewLine=true;
             CurrentLine = "";
             while (string.IsNullOrEmpty(CurrentLine) || string.IsNullOrWhiteSpace(CurrentLine))
             {
@@ -108,28 +127,32 @@ public class InputOutput
         }
     }
     /// <returns>
-    /// True if under current pos line some error is found
+    /// True if under given line some error is found
     /// </returns>
-    bool IsErrorOnLine()
+    /// <param name="line">Line to check. Uses current line if not specified</param>
+    /// <returns></returns>
+    public bool IsErrorOnLine(ulong line = ulong.MaxValue)
     {
-        if (Errors.TryGetValue(Pos.LineNumber, out var errors))
+        line = line==ulong.MaxValue ? Pos.LineNumber : line;
+        if (Errors.TryGetValue(line, out var errors))
         {
             if (errors.Count != 0)
                 return true;
         }
         return false;
     }
-    int ListErrors()
+    int ListErrors(ulong line)
     {
         var printedErrors=0;
         //handle line errors
-        var errors = Errors[Pos.LineNumber];
+        var errors = Errors[line];
+        var CurrentLine = this.Program.Lines[line];
         foreach (var e in errors)
         {
             if (ErrorsCounter >= Variables.ERRMAX) break;
 
             Console.ForegroundColor = ConsoleColor.Red;
-            System.Console.WriteLine($"Error on line {Pos.LineNumber}");
+            System.Console.WriteLine($"Error on line {line}");
             Console.ForegroundColor = ConsoleColor.Green;
             System.Console.WriteLine(CurrentLine);
             Console.ForegroundColor = ConsoleColor.Red;
