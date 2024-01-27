@@ -74,15 +74,15 @@ public class InputOutput
         else
         {
             EOF = true;
-            return;
         }
     }
-    public void PrintErrorsOnCurrentLine()
+    public int PrintErrorsOnCurrentLine()
     {
         if (ErrorsCounter < Variables.ERRMAX && IsErrorOnLine())
         {
-            ListErrors();
+            return ListErrors();
         }
+        return 0;
     }
     public void NextChar()
     {
@@ -119,8 +119,9 @@ public class InputOutput
         }
         return false;
     }
-    void ListErrors()
+    int ListErrors()
     {
+        var printedErrors=0;
         //handle line errors
         var errors = Errors[Pos.LineNumber];
         foreach (var e in errors)
@@ -141,7 +142,9 @@ public class InputOutput
 
             Console.ResetColor();
             ErrorsCounter++;
+            printedErrors++;
         }
+        return printedErrors;
     }
 
 }

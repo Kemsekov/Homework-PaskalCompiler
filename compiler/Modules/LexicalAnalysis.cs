@@ -32,13 +32,8 @@ public class LexicalAnalysis
     {
         Configuration = configuration;  
         InputOutput = inputOutput;
-        Token = new()
-        {
-            CharNumber = 0,
-            LineNumber = 0
-        };
     }
-    public TextPosition Token;
+    public TextPosition Pos => InputOutput.Pos;
     public byte Symbol;
     public string SymbolValue="";
 
@@ -131,8 +126,6 @@ public class LexicalAnalysis
             return;
         }
 
-        Token.CharNumber = InputOutput.Pos.CharNumber;
-        Token.LineNumber = InputOutput.Pos.LineNumber;
         var lineNumber = InputOutput.Pos.LineNumber;
         
         //if our symbol is not string

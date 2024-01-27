@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PascalCompiler\PascalCompiler.csproj" />
+    <ProjectReference Include="..\compiler\PascalCompiler.csproj" />
   </ItemGroup>
 
 </Project>
