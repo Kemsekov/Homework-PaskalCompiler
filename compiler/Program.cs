@@ -1,6 +1,6 @@
 ﻿using static AppInstance;
-
-args=["examples/input.pas"];
+if(args.Length==0)
+    args=["examples/input.pas"];
 
 if(args.Length==0){
     System.Console.WriteLine("Specify file to compile");

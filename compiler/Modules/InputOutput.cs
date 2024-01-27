@@ -161,8 +161,11 @@ public class InputOutput
             Array.Fill(head, '-');
             var headStr = new string(head);
 
-            System.Console.WriteLine($"{headStr}^\n{ErrorDescriptions[e.ErrorCode]}\n");
-
+            System.Console.WriteLine($"{headStr}^\n{ErrorDescriptions[e.ErrorCode]}");
+            if(e.SpecificErrorDescription is not null)
+                System.Console.WriteLine(e.SpecificErrorDescription);
+            
+            System.Console.WriteLine();
             Console.ResetColor();
             ErrorsCounter++;
             printedErrors++;

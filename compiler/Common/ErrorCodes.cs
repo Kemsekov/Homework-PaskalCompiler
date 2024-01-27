@@ -13,5 +13,6 @@ public enum ErrorCodes{
     /// { to }
     /// </summary>
     MissingFullEnclosingComment10=10,
+    UnexpectedSymbol = 11
     
 }
