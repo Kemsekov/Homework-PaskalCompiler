@@ -36,9 +36,9 @@ public class TermTests
         });
 
         var action = 
-            Term.OfConstant("<likes","likes")
-            .Or(Term.OfConstant("wants","wants"))
-            .Or(Term.OfConstant("dislikes>","dislikes"));
+            Term.OfConstant("likes")
+            .Or(Term.OfConstant("wants"))
+            .Or(Term.OfConstant("dislikes"));
         var statement = name.Follows(action).Follows(name);
 
         statement.Validate("vlad likes potatoes");
@@ -63,9 +63,9 @@ public class TermTests
             if(v[..6]=="string") return v[6..];
             throw new Exception("Type must be one of ('int','float','string')");
         });
-        var varTerm = Term.OfConstant("<var>","var");
-        var eq = Term.OfConstant(":=",":=");
-        var comma = Term.OfConstant(",",",");
+        var varTerm = Term.OfConstant("var");
+        var eq = Term.OfConstant(":=");
+        var comma = Term.OfConstant(",");
 
         var varDef = 
             varTerm
@@ -96,7 +96,7 @@ public class TermTests
     }
     [Fact]
     public void OfConstant(){
-        var program = Term.OfConstant("<programme>","program");
+        var program = Term.OfConstant("program");
         var name = new Term("<ident>",v=>{
             var identLength = v.TakeWhile(c=>char.IsLetter(c) || c=='_').Count();
             if(identLength==0){
@@ -104,8 +104,8 @@ public class TermTests
             }
             return v[identLength..];
         });
-        var open = Term.OfConstant("(","(");
-        var close = Term.OfConstant(")",")");
+        var open = Term.OfConstant("(");
+        var close = Term.OfConstant(")");
         var programDef =
             name.Follows(program)
             .Follows(

@@ -16,16 +16,22 @@ public class Term
         this.validate = validate;
         Name = name;
     }
+    /// <summary>
+    /// Creates a term that is one of constants
+    /// </summary>
     public static Term OfMany(string termName, string[] constants)
     {
-        var terms = constants.Select(v => OfConstant(v, v)).ToArray();
+        var terms = constants.Select(v => OfConstant(v)).ToArray();
         var res =  terms[0].Or(terms[1..]);
         res.Name=termName;
         return res;
     }
-    public static Term OfConstant(string termName, string constant)
+    /// <summary>
+    /// Creates a term that matches constant
+    /// </summary>
+    public static Term OfConstant(string constant)
     {
-        return new(termName,
+        return new(constant,
             s =>
             s[0..constant.Length] == constant ? s[constant.Length..] :
             throw new Exception($"'{constant}' expected on line '{s}'")
@@ -46,10 +52,9 @@ public class Term
                 s = t.Validate(s);
                 return s;
             }
-            catch
+            catch(Exception e)
             {
-                throw new Exception($"Expected term {name} not found on '{originalS}'");
-                throw;
+                throw new Exception($"Expected term {name} not found on '{originalS}'\n{e.Message}");
             }
         }
         );
@@ -97,34 +102,7 @@ public class Term
             }
             if (res is null)
             {
-                throw new Exception($"Expected one of {name} not found on '{originalS}'");
-            }
-            return res;
-        }
-        );
-    }
-    public Term Or(Term t)
-    {
-        var name = Name + BNF.Or + t.Name;
-        return new(name, s =>
-        {
-            var originalS = s;
-            string? res = null;
-            try
-            {
-                res = Validate(s);
-            }
-            catch { }
-            if (res is null)
-                try
-                {
-                    res = t.Validate(s);
-                }
-                catch { }
-
-            if (res is null)
-            {
-                throw new Exception($"Expected one of {name} not found on '{originalS}'");
+                throw new Exception($"None of {name} found on '{originalS}'");
             }
             return res;
         }
