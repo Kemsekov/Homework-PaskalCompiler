@@ -1,4 +1,6 @@
 namespace Modules;
+
+using System;
 using static Lexical;
 public class SyntaxAnalysis
 {
@@ -15,35 +17,122 @@ public class SyntaxAnalysis
     public ErrorDescriptions ErrorDescriptions { get; }
     public InputOutput InputOutput { get; }
     byte Symbol => LexicalAnalysis.Symbol;
-    void type()
+    /// <summary>
+    /// A set of symbols that is acceptable after key symbol
+    /// </summary>
+    public IDictionary<byte, HashSet<byte>> StartSymbols;
+    void CompoundStatement()
     {
-        //TODO:
-        // check current symbol to be valid type, 
-        //for now just accept ident
-        Accept(ident);
-    }
-    void SimpleType()
-    {
-        // check that current symbol is valid simple type (int,float,string)
-        if (LexicalAnalysis.SymbolValue == "int" || LexicalAnalysis.SymbolValue == "float" || LexicalAnalysis.SymbolValue == "string")
+        Accept(beginsy); 
+        Statement();
+        while (Symbol == semicolon)
         {
-            Accept(ident);
-            return;
+            LexicalAnalysis.NextSym(); 
+            Statement();
         }
-        InputOutput.LineErrors().Add(
-            new Error
-            {
-                ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                Position = LexicalAnalysis.Pos,
-                SpecificErrorDescription = $"Expected type int,float or string, but {LexicalAnalysis.SymbolValue} found"
-            }
-        );
+        Accept(endsy);
     }
-    void variable()
+    void Block()
+    {
+        LabelPart();
+        ConstPart();
+        TypePart();
+        VarPart();
+        ProcfuncPart();
+        StatementPart();
+    }
+    void WhileStatement()
+    {
+        Accept(whilesy);
+        Expression();
+        Accept(dosy);
+        Statement();
+    }
+    void ForStatement()
+    {
+        Accept(forsy);
+        Accept(ident);
+        Accept(assign);
+        Expression();
+        if (Symbol == tosy || Symbol == downtosy)
+            LexicalAnalysis.NextSym();
+        Expression();
+        Accept(dosy);
+        Statement();
+    }
+    bool type()
+    {
+        return SimpleType() ||  ComposedType() || ReferencedType();
+    }
+    //<простой тип> ::= <перечислимый тип> | <ограниченный тип> | <имя типа>
+    bool SimpleType()
+    {
+        return EnumType() || IndexedType() || TypeName();
+    }
+    bool TypeName(){
+        return Accept(ident);
+    }
+    bool IndexedType(){
+        throw new NotImplementedException();
+
+    }
+    bool EnumType(){
+        throw new NotImplementedException();
+
+    }
+    bool ComposedType(){
+        throw new NotImplementedException();
+    }
+    bool ReferencedType(){
+        throw new NotImplementedException();
+    }
+
+    private void Statement()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void StatementPart()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void ProcfuncPart()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void TypePart()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void ConstPart()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void LabelPart()
+    {
+        throw new NotImplementedException();
+    }
+    void Expression()
+    {
+
+    }
+    void Programme()
+    {
+        Accept(programsy);
+        Accept(ident);
+        Accept(semicolon);
+        Block();
+        Accept(point);
+    }
+
+    void Variable()
     {
         Accept(ident);
-        while (Symbol == lbracket || Symbol == point
-        || Symbol == arrow)
+        while (Symbol == lbracket || Symbol == point || Symbol == arrow)
             switch (Symbol)
             {
                 case lbracket:
@@ -99,6 +188,16 @@ public class SyntaxAnalysis
         Accept(rbracket);
         Accept(ofsy);
         type();
+    }
+    void IfStatement(){
+        Accept(ifsy);
+        Expression();
+        Accept(thensy);
+        Statement();
+        if(Symbol == elsesy){
+            LexicalAnalysis.NextSym();
+            Statement();
+        }
     }
     /// <summary>
     /// Accepts current symbol if it is equal to <paramref name="expectedSymbol"/> and moves to next symbol
