@@ -89,7 +89,9 @@ public class Term
                 }
             return s;
         }
-        );
+        ){
+            Subterms=Subterms
+        };
     }
     public Term Or(params Term[] terms)
     {
