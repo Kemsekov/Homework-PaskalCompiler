@@ -10,9 +10,18 @@ public class Term
     /// Term name
     /// </summary>
     public string Name { get; protected set; }
+    /// <summary>
+    /// Part that was validated in latest call of <see cref="Validate(string)"/>, or empty string if validation was unsuccessful
+    /// </summary>
+    public string LastValidatedPart{get;protected set;} = "";
+    /// <summary>
+    /// Subterms of this term
+    /// </summary>
+    public IEnumerable<Term> Subterms{get;init;}
     Func<string, string> validate;
     public Term(string name, Func<string, string> validate)
     {
+        Subterms = new HashSet<Term>();
         this.validate = validate;
         Name = name;
     }
@@ -57,7 +66,9 @@ public class Term
                 throw new Exception($"Expected term {name} not found on '{originalS}'\n{e.Message}");
             }
         }
-        );
+        ){
+            Subterms=new HashSet<Term>{this,t}
+        };
     }
     /// <summary>
     /// Zero or many of term t
@@ -106,15 +117,21 @@ public class Term
             }
             return res;
         }
-        );
+        ){
+            Subterms=terms.Append(this).ToHashSet()
+        };
     }
     /// <summary>
     /// Validates a string and cuts validated part from the beginning of the string, returning left not validated part
     /// </summary>
     public string Validate(string input)
     {
+        LastValidatedPart="";
         input = input.Trim(BNF.Whitespaces);
-        return validate(input).Trim(BNF.Whitespaces);
+        var left = validate(input);
+        LastValidatedPart=input[..(input.Length-left.Length)].Trim(BNF.Whitespaces);
+        
+        return left.Trim(BNF.Whitespaces);
     }
 }
 
