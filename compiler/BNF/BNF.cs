@@ -108,6 +108,9 @@ public class Term
         }
         );
     }
+    /// <summary>
+    /// Validates a string and cuts validated part from the beginning of the string, returning left not validated part
+    /// </summary>
     public string Validate(string input)
     {
         input = input.Trim(BNF.Whitespaces);
