@@ -13,16 +13,26 @@ public class Term
     /// <summary>
     /// Part that was validated in latest call of <see cref="Validate(string)"/>, or empty string if validation was unsuccessful
     /// </summary>
-    public string LastValidatedPart{get;protected set;} = "";
+    public string LastValidatedPart { get; protected set; } = "";
     /// <summary>
     /// Subterms of this term
     /// </summary>
-    public IEnumerable<Term> Subterms{get;init;}
-    Func<string, string> validate;
-    public Term(string name, Func<string, string> validate)
+    public IEnumerable<Term> Subterms { get; init; }
+    Func<string, int, int> validate;
+    /// <param name="name">Term name</param>
+    /// <param name="validate">Reads string from index and returns length of validated symbol</param>
+    public Term(string name, Func<string, int, int> validate)
     {
         Subterms = new HashSet<Term>();
         this.validate = validate;
+        Name = name;
+    }
+    /// <param name="name">Term name</param>
+    /// <param name="validate">returns validated substring from the beginning of input string</param>
+    public Term(string name, Func<string, string> validate)
+    {
+        Subterms = new HashSet<Term>();
+        this.validate = (s, index) => validate(s[index..]).Length;
         Name = name;
     }
     /// <summary>
@@ -31,8 +41,8 @@ public class Term
     public static Term OfMany(string termName, string[] constants)
     {
         var terms = constants.Select(v => OfConstant(v)).ToArray();
-        var res =  terms[0].Or(terms[1..]);
-        res.Name=termName;
+        var res = terms[0].Or(terms[1..]);
+        res.Name = termName;
         return res;
     }
     /// <summary>
@@ -41,8 +51,8 @@ public class Term
     public static Term OfConstant(string constant)
     {
         return new(constant,
-            s =>
-            s[0..constant.Length] == constant ? s[constant.Length..] :
+            (s, index) =>
+            s[index..(index + constant.Length)] == constant ? constant.Length :
             throw new Exception($"'{constant}' expected on line '{s}'")
         );
     }
@@ -52,22 +62,23 @@ public class Term
     public Term Follows(Term t)
     {
         var name = this.Name + t.Name;
-        return new(name, s =>
+        return new(name, (s, index) =>
         {
-            var originalS = s;
+            var validatedLength = 0;
             try
             {
-                s = Validate(s);
-                s = t.Validate(s);
-                return s;
+                validatedLength += Validate(s, index);
+                validatedLength += t.Validate(s, index + validatedLength);
+                return validatedLength;
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                throw new Exception($"Expected term {name} not found on '{originalS}'\n{e.Message}");
+                throw new Exception($"Expected term {name} not found on '{s}'\n{e.Message}");
             }
         }
-        ){
-            Subterms=new HashSet<Term>{this,t}
+        )
+        {
+            Subterms = new HashSet<Term> { this, t }
         };
     }
     /// <summary>
@@ -76,21 +87,25 @@ public class Term
     public Term ZeroOrMany()
     {
         var name = BNF.ZeroOrManyOpening + Name + BNF.ZeroOrManyClosing;
-        return new(name, s =>
+        return new(name, (s, index) =>
         {
+            var validatedLength = 0;
             while (true)
                 try
                 {
-                    s = Validate(s);
+                    var valid = Validate(s, index + validatedLength);
+                    validatedLength += valid;
+                    if (valid == 0) break;
                 }
                 catch
                 {
                     break;
                 }
-            return s;
+            return validatedLength;
         }
-        ){
-            Subterms=Subterms
+        )
+        {
+            Subterms = Subterms
         };
     }
     public Term Or(params Term[] terms)
@@ -100,40 +115,55 @@ public class Term
         {
             name += BNF.Or + t.Name;
         }
-        return new(name, s =>
+        return new(name, (s, index) =>
         {
-            var originalS = s;
-            string? res = null;
+            int validatedLength = -1;
             foreach (var t in terms.Append(this))
             {
-                if (res is not null) break;
+                if (validatedLength != -1) break;
                 try
                 {
-                    res = t.Validate(s);
+                    validatedLength = t.Validate(s, index);
                 }
                 catch { }
             }
-            if (res is null)
+            if (validatedLength == -1)
             {
-                throw new Exception($"None of {name} found on '{originalS}'");
+                throw new Exception($"None of {name} found on '{s}'");
             }
-            return res;
+            return validatedLength;
         }
-        ){
-            Subterms=terms.Append(this).ToHashSet()
+        )
+        {
+            Subterms = terms.Append(this).ToHashSet()
         };
     }
     /// <summary>
     /// Validates a string and cuts validated part from the beginning of the string, returning left not validated part
     /// </summary>
-    public string Validate(string input)
+    public int Validate(string input, int index = 0)
     {
-        LastValidatedPart="";
-        input = input.Trim(BNF.Whitespaces);
-        var left = validate(input);
-        LastValidatedPart=input[..(input.Length-left.Length)].Trim(BNF.Whitespaces);
-        
-        return left.Trim(BNF.Whitespaces);
+        LastValidatedPart = "";
+        var skipped = 0;
+        try
+        {
+            while (BNF.Whitespaces.Contains(input[index]) && index < input.Length)
+            {
+                skipped++;
+                index++;
+            }
+        }
+        catch { }
+        if(Name=="likes|wants"){
+            System.Console.WriteLine('a');
+        }
+        var validatedLength = validate(input, index);
+        LastValidatedPart = input[index..(index + validatedLength)].Trim(BNF.Whitespaces);
+
+        return validatedLength + skipped;
+    }
+    public override string ToString(){
+        return Name;
     }
 }
 

@@ -4,6 +4,7 @@ namespace tests;
 
 public class TermTests
 {
+
     [Fact]
     public void OfMany(){
         var name = new Term("<name>",v=>{
@@ -11,7 +12,7 @@ public class TermTests
             if(identLength==0){
                 throw new Exception("ident must have name that can contain letters and underscore _");
             }
-            return v[identLength..];
+            return v[0..identLength];
         });
 
         var action = 
@@ -32,7 +33,7 @@ public class TermTests
             if(identLength==0){
                 throw new Exception("ident must have name that can contain letters and underscore _");
             }
-            return v[identLength..];
+            return v[0..identLength];
         });
 
         var action = 
@@ -55,12 +56,12 @@ public class TermTests
             if(identLength==0){
                 throw new Exception("ident must have name that can contain letters and underscore _");
             }
-            return v[identLength..];
+            return v[0..identLength];
         });
         var type = new Term("<type>",v=>{
-            if(v[..3]=="int") return v[3..];
-            if(v[..5]=="float") return v[5..];
-            if(v[..6]=="string") return v[6..];
+            if(v[..3]=="int") return "int";
+            if(v[..5]=="float") return "float";
+            if(v[..6]=="string") return "string";
             throw new Exception("Type must be one of ('int','float','string')");
         });
         var varTerm = Term.OfConstant("var");
@@ -79,20 +80,28 @@ public class TermTests
                 .Follows(type)
                 .ZeroOrMany()
             );
-        varDef.Validate("var a:=int");
-        varDef.Validate("var a:=int, b:=float");
-        varDef.Validate("var bfg:=int, dad:=float,dad:=string, dad:=int");
+        varDef.Validate("\n var  a:=int");
+        varDef.Validate("var     a:=int, b:=float");
+        varDef.Validate("var bfg:=int,   dad:=float,dad:=string, dad:=int");
 
         //missing var
         Assert.Throws<Exception>(()=>varDef.Validate("a:=int,b:=float"));
         
-        //when many is processing it will not throw but return unprocessed part
-        // wrong type.
-        var d = varDef.Validate("var a:=int,b:=long");
-        Assert.NotEmpty(d);
+        //unknown long type, so last pattern does not match
+        varDef.Validate("var a:=int,b:=long");
+        Assert.Equal("var a:=int",varDef.LastValidatedPart);
+        
+        //unkown symbol =, so the pattern does not match
+        varDef.Validate("var a:=int,b:=int,c=float");
+        Assert.Equal("var a:=int,b:=int",varDef.LastValidatedPart);
+        
+        // // unused commas
+        varDef.Validate("var a:=int,b:=int,,,");
+        Assert.Equal("var a:=int,b:=int",varDef.LastValidatedPart);
+
         // // unused comma
-        d = varDef.Validate("var a:=int,b:=int,");
-        Assert.NotEmpty(d);
+        varDef.Validate("var a:=int,b:=int,");
+        Assert.Equal("var a:=int,b:=int",varDef.LastValidatedPart);
     }
     [Fact]
     public void OfConstant(){
@@ -102,7 +111,7 @@ public class TermTests
             if(identLength==0){
                 throw new Exception("ident must have name that can contain letters and underscore _");
             }
-            return v[identLength..];
+            return v[0..identLength];
         });
         var open = Term.OfConstant("(");
         var close = Term.OfConstant(")");
@@ -124,19 +133,19 @@ public class TermTests
     {
         var t1 = new Term("<Name>",v=>
             char.IsUpper(v[0]) ? 
-            v[v.TakeWhile(v=>char.IsLetter(v)).Count()..] : 
+            new string(v.TakeWhile(v=>char.IsLetter(v)).ToArray()) : 
             throw new Exception("Name must start with uppercase")
         );
         var t2 = new Term("<Time>",v=>{
-            if(v[..2]=="is") return v[2..];
-            if(v[..3]=="was") return v[3..];
-            if(v[..7]=="will be") return v[7..];
+            if(v[..2]=="is") return "is";
+            if(v[..3]=="was") return "was";
+            if(v[..7]=="will be") return "will be";
             throw new Exception("Time must be one of ('is','was','will be')");
         });
         var t3 = new Term("<Mood>",v=>{
-            if(v[..3]=="sad") return v[3..];
-            if(v[..5]=="happy") return v[5..];
-            if(v[..7]=="working") return v[7..];
+            if(v[..3]=="sad") return "sad";
+            if(v[..5]=="happy") return "happy";
+            if(v[..7]=="working") return "working";
             throw new Exception($"Mood must be one of ('sad','happy','working') '{v}' is given");
         });
         var together = t1.Follows(t2).Follows(t3);
