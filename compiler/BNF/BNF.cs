@@ -1,8 +1,28 @@
 
 
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+
+public struct Subterms{
+    public Subterms()
+    {
+    }
+
+    /// <summary>
+    /// Left subterm of this term, so this term follows after LeftTerm
+    /// </summary>
+    public Term? LeftTerm{get;set;} = null;
+    /// <summary>
+    /// Right subterm of this term, so RightTerm follows after this term
+    /// </summary>
+    public Term? RightTerm{get;set;} = null;
+    /// <summary>
+    /// If current term is OR term that contains a lot of other terms inside of it, they're all gonna be here
+    /// </summary>
+    public IEnumerable<Term>? OrSubterms{get;set;} = null;
+}
 
 public class Term
 {
@@ -15,15 +35,18 @@ public class Term
     /// </summary>
     public string LastValidatedPart { get; protected set; } = "";
     /// <summary>
-    /// Subterms of this term
+    /// Zero or many calls validated parts on last validate call
     /// </summary>
-    public IEnumerable<Term> Subterms { get; init; }
+    public IList<string> ZeroOrManyLastValidatedPart{get;protected init;}=[];
+    /// <summary>
+    /// This term subterms
+    /// </summary>
+    public Subterms Subterms{get;protected set;}
     Func<string, int, int> validate;
     /// <param name="name">Term name</param>
     /// <param name="validate">Reads string from index and returns length of validated symbol</param>
     public Term(string name, Func<string, int, int> validate)
     {
-        Subterms = new HashSet<Term>();
         this.validate = validate;
         Name = name;
     }
@@ -31,9 +54,20 @@ public class Term
     /// <param name="validate">returns validated substring from the beginning of input string</param>
     public Term(string name, Func<string, string> validate)
     {
-        Subterms = new HashSet<Term>();
         this.validate = (s, index) => validate(s[index..]).Length;
         Name = name;
+    }
+    /// <summary>
+    /// Creates a term that can reference to itself in creation process<br/>
+    /// for example: `bool expr`=`variable` `bool op` `variable` | not `bool expr`
+    /// </summary>
+    /// <param name="termCreation">Method to create a new term out of this term, making new term definition to be a definition of input term</param>
+    public Term OfSelf(Func<Term,Term> termCreation){
+        var self = this;
+        var term = termCreation(self);
+        self.validate=term.validate;
+        self.Subterms=term.Subterms;
+        return term;
     }
     /// <summary>
     /// Creates a term that is one of constants
@@ -56,6 +90,14 @@ public class Term
             throw new Exception($"'{constant}' expected on line '{s}'")
         );
     }
+    public Term WithName(string name){
+        this.Name = name;
+        return this;
+    }
+    public Term Follows(string constant){
+        return Follows(Term.OfConstant(constant));
+    }
+
     /// <summary>
     /// t2 term follows after t1
     /// </summary>
@@ -78,7 +120,10 @@ public class Term
         }
         )
         {
-            Subterms = new HashSet<Term> { this, t }
+            Subterms=new(){
+                LeftTerm=this,
+                RightTerm=t
+            }
         };
     }
     /// <summary>
@@ -87,15 +132,19 @@ public class Term
     public Term ZeroOrMany()
     {
         var name = BNF.ZeroOrManyOpening + Name + BNF.ZeroOrManyClosing;
+        var added = new List<string>();
         return new(name, (s, index) =>
         {
             var validatedLength = 0;
+            added.Clear();
             while (true)
                 try
                 {
                     var valid = Validate(s, index + validatedLength);
                     validatedLength += valid;
-                    if (valid == 0) break;
+                    if (valid != 0)
+                        added.Add(LastValidatedPart);
+                    else break;
                 }
                 catch
                 {
@@ -105,7 +154,8 @@ public class Term
         }
         )
         {
-            Subterms = Subterms
+            ZeroOrManyLastValidatedPart=added,
+            Subterms=Subterms
         };
     }
     public Term Or(params Term[] terms)
@@ -115,10 +165,11 @@ public class Term
         {
             name += BNF.Or + t.Name;
         }
+        var orTerms = terms.Append(this).ToList();
         return new(name, (s, index) =>
         {
             int validatedLength = -1;
-            foreach (var t in terms.Append(this))
+            foreach (var t in orTerms)
             {
                 if (validatedLength != -1) break;
                 try
@@ -135,7 +186,9 @@ public class Term
         }
         )
         {
-            Subterms = terms.Append(this).ToHashSet()
+            Subterms=new(){
+                OrSubterms=orTerms
+            }
         };
     }
     /// <summary>

@@ -4,7 +4,93 @@ namespace tests;
 
 public class TermTests
 {
+    [Fact]
+    public void Arithmetic(){
 
+        //<digit>::= char.IsDigit
+        //<letter>::= char.IsLetter
+        //<number>::= <digit>{<digit>}
+        //<name>::= <letter>{<letter>}
+        //<symbol>::= <name>|<number>:|<name>_<number>
+        //<sign>={-}
+        //<addition>::= +|-
+        //<mult> ::= *|/|^|%
+
+        //<simple expression> ::= <sign><symbol>{<op><symbol>}
+        //<expression> ::= <simple expression> | (<simple expression>)
+        var letter = new Term("<letter>",s=>char.IsLetter(s[0]) ? s[0..1] : throw new Exception("not a letter"));
+        var digit = new Term("<digit>",s=>char.IsDigit(s[0]) ? s[0..1] : throw new Exception("not a digit"));
+
+        //<name> ::= <letter>{<letter>}
+        var name = letter.Follows(letter.ZeroOrMany()).WithName("<name>");
+        name.Validate("vladBochkarev 123");
+        Assert.Equal("vladBochkarev",name.LastValidatedPart);
+        Assert.Throws<Exception>(()=>name.Validate("12345"));
+
+        //<number> ::= <digit>{<digit>}
+        var number = digit.Follows(digit.ZeroOrMany()).WithName("<number>");
+        number.Validate("432535 name1");
+        Assert.Equal("432535",number.LastValidatedPart);
+        Assert.Throws<Exception>(()=>number.Validate("abcde"));
+
+        //<symbol> ::= <name> | <number> | <name>_<number>
+        var symbol = name.Or(number,name.Follows("_").Follows(number)).WithName("<symbol>");
+        symbol.Validate("123");
+        symbol.Validate("name");
+        symbol.Validate("supername_123");
+
+        symbol.Validate("543name");
+        Assert.Equal("543",symbol.LastValidatedPart);
+        symbol.Validate("name123");
+        Assert.Equal("name",symbol.LastValidatedPart);
+        
+        symbol.Validate("name_123_name");
+        Assert.Equal("name_123",symbol.LastValidatedPart);
+        symbol.Validate("6542_name_123");
+        Assert.Equal("6542",symbol.LastValidatedPart);
+
+    }
+    [Fact]
+    public void OfSelf(){
+        var letter = new Term("<letter>",s=>char.IsLetter(s[0]) ? s[0..1] : throw new Exception("not a letter"));
+        var digit = new Term("<digit>",s=>char.IsDigit(s[0]) ? s[0..1] : throw new Exception("not a digit"));
+
+        //<number> ::= <digit>{<digit>}
+        var number = digit.Follows(digit.ZeroOrMany()).WithName("<number>");
+        number.Validate("432535 name1");
+        Assert.Equal("432535",number.LastValidatedPart);
+        Assert.Throws<Exception>(()=>number.Validate("abcde"));
+
+        var op = Term.OfMany("<op>",["+","-"]);
+
+        //it is a bit tricky not to stuck into infinite recursion
+        // <expression> ::= <number><op><number> | (<expression>)
+        var expression = 
+            number
+            .Follows(op)
+            .Follows(number)
+            .OfSelf(t=>
+                Term.OfConstant("(")
+                .Follows(t)
+                .Follows(Term.OfConstant(")"))
+                .Or(t))
+            .WithName("<expression>");
+        
+        expression.Validate("123+86");
+        Assert.Equal("123+86",expression.LastValidatedPart);
+
+        expression.Validate("94-388");
+        Assert.Equal("94-388",expression.LastValidatedPart);
+
+        expression.Validate("(119-53)");
+        Assert.Equal("(119-53)",expression.LastValidatedPart);
+
+        expression.Validate("(((119-53)))");
+        Assert.Equal("(((119-53)))",expression.LastValidatedPart);
+
+        //must throws on uneven amount of brackets
+        Assert.Throws<Exception>(()=>expression.Validate("((1+43)"));
+    }
     [Fact]
     public void OfMany(){
         var name = new Term("<name>",v=>{
@@ -20,8 +106,13 @@ public class TermTests
         var statement = name.Follows(action).Follows(name);
 
         statement.Validate("vlad likes potatoes");
+        Assert.Equal("vlad likes potatoes",statement.LastValidatedPart);
+
         statement.Validate("dima dislikes carrots");
+        Assert.Equal("dima dislikes carrots",statement.LastValidatedPart);
+        
         statement.Validate("arina wants marshmallow");
+        Assert.Equal("arina wants marshmallow",statement.LastValidatedPart);
 
         Assert.Throws<Exception>(()=>statement.Validate("vlad hates grechka"));
         Assert.Throws<Exception>(()=>statement.Validate("arina sent message"));
@@ -43,8 +134,13 @@ public class TermTests
         var statement = name.Follows(action).Follows(name);
 
         statement.Validate("vlad likes potatoes");
+        Assert.Equal("vlad likes potatoes",statement.LastValidatedPart);
+
         statement.Validate("dima dislikes carrots");
+        Assert.Equal("dima dislikes carrots",statement.LastValidatedPart);
+        
         statement.Validate("arina wants marshmallow");
+        Assert.Equal("arina wants marshmallow",statement.LastValidatedPart);
 
         Assert.Throws<Exception>(()=>statement.Validate("vlad hates grechka"));
         Assert.Throws<Exception>(()=>statement.Validate("arina sent message"));
@@ -81,8 +177,13 @@ public class TermTests
                 .ZeroOrMany()
             );
         varDef.Validate("\n var  a:=int");
+        Assert.Equal("var  a:=int",varDef.LastValidatedPart);
+
         varDef.Validate("var     a:=int, b:=float");
+        Assert.Equal("var     a:=int, b:=float",varDef.LastValidatedPart);
+        
         varDef.Validate("var bfg:=int,   dad:=float,dad:=string, dad:=int");
+        Assert.Equal("var bfg:=int,   dad:=float,dad:=string, dad:=int",varDef.LastValidatedPart);
 
         //missing var
         Assert.Throws<Exception>(()=>varDef.Validate("a:=int,b:=float"));
