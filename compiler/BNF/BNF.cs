@@ -59,7 +59,10 @@ public class Term
     }
     /// <summary>
     /// Creates a term that can reference to itself in creation process<br/>
-    /// for example: `bool expr`=`variable` `bool op` `variable` | not `bool expr`
+    /// for example: `bool expr`=`variable` `bool op` `variable` | not `bool expr`<br/>
+    /// If you gonna use it with "Or" statements make sure to add 
+    /// self reference to the end of the statement => so you will not get stuck
+    /// into infinite recursion
     /// </summary>
     /// <param name="termCreation">Method to create a new term out of this term, making new term definition to be a definition of input term</param>
     public Term OfSelf(Func<Term,Term> termCreation){
@@ -87,7 +90,7 @@ public class Term
         return new(constant,
             (s, index) =>
             s[index..(index + constant.Length)] == constant ? constant.Length :
-            throw new Exception($"'{constant}' expected on line '{s}'")
+            throw new Exception($"'{constant}' expected")
         );
     }
     public Term WithName(string name){
@@ -115,7 +118,7 @@ public class Term
             }
             catch (Exception e)
             {
-                throw new Exception($"Expected term {name} not found on '{s}'\n{e.Message}");
+                throw new Exception($"Expected term {name} not found\n{e.Message}");
             }
         }
         )
