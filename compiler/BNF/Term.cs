@@ -1,24 +1,22 @@
 public class Term
 {
     /// <summary>
+    /// Parent term. It is used when new term does not add much logic but wraps around old term, like brackets {oldTerm}
+    /// </summary>
+    public Term? Parent = null;
+    /// <summary>
     /// Term name
     /// </summary>
     public string Name { get; protected set; }
-    /// <summary>
-    /// Part that was validated in latest call of <see cref="Validate(string)"/>, or empty string if validation was unsuccessful
+        /// <summary>
+    /// Part that was validated in latest call of <see cref="Term.Validate"/>, or empty string if validation was unsuccessful
     /// </summary>
-    public string LastValidatedPart => lastValidatedString[lastValidatedStartIndex..lastValidatedEndIndex].Trim(BNF.Whitespaces);
-    public int lastValidatedStartIndex{ get; protected set; } = 0;
-    public int lastValidatedEndIndex{ get; protected set; } = 0;
+    public string LastValidatedPart => ValidationInfo.LastValidatedPart;
     /// <summary>
-    /// Zero or many calls validated parts on last validate call
+    /// Information about validation in latest call of <see cref="Validate(string)"/>
     /// </summary>
-    public IList<string> ZeroOrManyLastValidatedPart{get;protected init;}=[];
-    /// <summary>
-    /// This term subterms
-    /// </summary>
-    public Subterms Subterms{get;protected set;}
-    string lastValidatedString="";
+    public ValidationInfo ValidationInfo{get;protected set;}
+    public Subterms? Subterms{get;protected set;} = null;
     Func<string, int, int> validate;
     /// <param name="name">Term name</param>
     /// <param name="validate">Reads string from index and returns length of validated symbol</param>
@@ -26,6 +24,7 @@ public class Term
     {
         this.validate = validate;
         Name = name;
+        ValidationInfo= new(this,0,0,"",null);
     }
     /// <param name="name">Term name</param>
     /// <param name="validate">returns validated substring from the beginning of input string</param>
@@ -33,10 +32,12 @@ public class Term
     {
         this.validate = (s, index) => validate(s[index..]).Length;
         Name = name;
+        ValidationInfo= new(this,0,0,"",null);
     }
     ///<inheritdoc cref="Term.OfSelf(Func{Term, Term})"/>
-    public static Term OfSelf_(Func<Term,Term> termCreation){
-        var t = new Term("",s=>s);
+    public static Term OfSelf_(Func<Term, Term> termCreation)
+    {
+        var t = new Term("", s => s);
         return t.OfSelf(termCreation);
     }
 
@@ -48,11 +49,12 @@ public class Term
     /// into infinite recursion
     /// </summary>
     /// <param name="termCreation">Method to create a new term out of this term, making new term definition to be a definition of input term</param>
-    public Term OfSelf(Func<Term,Term> termCreation){
+    public Term OfSelf(Func<Term, Term> termCreation)
+    {
         var self = this;
         var term = termCreation(self);
-        self.validate=term.validate;
-        self.Subterms=term.Subterms;
+        self.validate = term.validate;
+        self.ValidationInfo = term.ValidationInfo;
         return term;
     }
     /// <summary>
@@ -60,7 +62,7 @@ public class Term
     /// </summary>
     public static Term OfMany(string termName, string[] constants)
     {
-        var terms = constants.Select(v => OfConstant(v)).ToArray();
+        var terms = constants.Select(OfConstant).ToArray();
         var res = terms[0].Or(terms[1..]);
         res.Name = termName;
         return res;
@@ -73,14 +75,16 @@ public class Term
         return new(constant,
             (s, index) =>
             s[index..(index + constant.Length)] == constant ? constant.Length :
-            throw new TermException($"'{constant}' expected on index {index}",constant,index)
+            throw new TermException($"'{constant}' expected on index {index}", constant, index)
         );
     }
-    public Term WithName(string name){
+    public Term WithName(string name)
+    {
         this.Name = name;
         return this;
     }
-    public Term Follows(string constant){
+    public Term Follows(string constant)
+    {
         return Follows(Term.OfConstant(constant));
     }
 
@@ -90,26 +94,32 @@ public class Term
     public Term Follows(Term t)
     {
         var name = this.Name + t.Name;
+        var left = ValidationInfo.Clone();
+        var right = t.ValidationInfo.Clone();
         return new(name, (s, index) =>
         {
             var validatedLength = 0;
             try
             {
                 validatedLength += Validate(s, index);
+                left.Update(ValidationInfo);
                 validatedLength += t.Validate(s, index + validatedLength);
+                right.Update(t.ValidationInfo);
                 return validatedLength;
             }
             catch (Exception e)
             {
-                throw new TermException($"Expected term {name} not found on index {index}\n{e.Message}",name,index);
+                throw new TermException($"Expected term {name} not found on index {index}\n{e.Message}", name, index);
             }
         }
         )
         {
-            Subterms=new(){
-                LeftTerm=this,
-                RightTerm=t
+            Subterms=new()
+            {
+                LeftTerm = left,
+                RightTerm = right
             }
+            
         };
     }
     /// <summary>
@@ -118,7 +128,7 @@ public class Term
     public Term ZeroOrMany()
     {
         var name = BNF.ZeroOrManyOpening + Name + BNF.ZeroOrManyClosing;
-        var added = new List<string>();
+        var added = new List<ValidationInfo>();
         return new(name, (s, index) =>
         {
             var validatedLength = 0;
@@ -129,7 +139,7 @@ public class Term
                     var valid = Validate(s, index + validatedLength);
                     validatedLength += valid;
                     if (valid != 0)
-                        added.Add(LastValidatedPart);
+                        added.Add(ValidationInfo.Clone());
                     else break;
                 }
                 catch
@@ -140,8 +150,11 @@ public class Term
         }
         )
         {
-            ZeroOrManyLastValidatedPart=added,
-            Subterms=Subterms
+            Parent=this,
+            Subterms=new()
+            {
+                ZeroOrManyLastValidatedPart=added
+            }
         };
     }
     /// <summary>
@@ -158,29 +171,35 @@ public class Term
             name += BNF.Or + t.Name;
         }
         var orTerms = terms.Prepend(this).ToList();
-        var exceptionOrTermsNames = string.Join(", ",orTerms);
+        var orTermsValidationInfo = orTerms.Select(t=>t.ValidationInfo).ToList();
+        var exceptionOrTermsNames = string.Join(", ", orTerms);
         return new(name, (s, index) =>
         {
+            orTermsValidationInfo.Clear();
             int validatedLength = -1;
-            foreach (var t in orTerms)
+            var count = orTerms.Count;
+            for(int i = 0;i<count;i++)
             {
+                var t = orTerms[i];
                 if (validatedLength != -1) break;
                 try
                 {
                     validatedLength = t.Validate(s, index);
+                    orTermsValidationInfo.Add(t.ValidationInfo.Clone());
                 }
                 catch { }
             }
             if (validatedLength == -1)
             {
-                throw new TermException($"None of expected terms '{exceptionOrTermsNames}' found on index {index}",name,index);
+                throw new TermException($"None of expected terms '{exceptionOrTermsNames}' found on index {index}", name, index);
             }
             return validatedLength;
         }
         )
         {
-            Subterms=new(){
-                OrSubterms=orTerms
+            Subterms=new()
+            {
+                OrSubterms = orTermsValidationInfo
             }
         };
     }
@@ -189,7 +208,7 @@ public class Term
     /// </summary>
     public int Validate(string input, int index = 0)
     {
-        lastValidatedString = "";
+        ValidationInfo.Update(this,0,0,"",null);
         var skipped = 0;
         try
         {
@@ -201,13 +220,13 @@ public class Term
         }
         catch { }
         var validatedLength = validate(input, index);
-        lastValidatedString=input;
-        lastValidatedStartIndex=index;
-        lastValidatedEndIndex=index + validatedLength;
+
+        ValidationInfo.Update(this,index,index + validatedLength,input,Subterms?.DeepCopy());
 
         return validatedLength + skipped;
     }
-    public override string ToString(){
+    public override string ToString()
+    {
         return Name;
     }
 }

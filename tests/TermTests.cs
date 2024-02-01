@@ -6,6 +6,22 @@ namespace tests;
 public class TermTests
 {
     [Fact]
+    public void Memory(){
+        var action =
+            Term.OfMany("<does>", ["likes", "dislikes", "wants"]);
+        var names =
+            Term.OfMany("<does>", ["dima", "sasha", "vlad"]);
+        var manyUnderscore = 
+            Term.OfConstant("_").ZeroOrMany();
+        
+        var follows = action.Follows(manyUnderscore).Follows(names).ZeroOrMany();
+
+        follows.Validate("");
+        Assert.Equal("",follows.LastValidatedPart);
+        follows.Validate("likes __ vlad dislikes__ dima wants sasha");
+        Assert.Equal("likes __ vlad dislikes__ dima wants sasha",follows.LastValidatedPart);
+    }
+    [Fact]
     public void OrPriority()
     {
         var letter = new Term("<letter>", s => char.IsLetter(s[0]) ? s[0..1] : throw new Exception("not a letter"));
