@@ -31,6 +31,7 @@ public class Term
         this.validate = (s, index) => validate(s[index..]).Length;
         Name = name;
     }
+    ///<inheritdoc cref="Term.OfSelf(Func{Term, Term})"/>
     public static Term OfSelf_(Func<Term,Term> termCreation){
         var t = new Term("",s=>s);
         return t.OfSelf(termCreation);
