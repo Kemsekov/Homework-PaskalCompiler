@@ -7,8 +7,7 @@ public class Term
     /// <summary>
     /// Part that was validated in latest call of <see cref="Validate(string)"/>, or empty string if validation was unsuccessful
     /// </summary>
-    public string LastValidatedPart => LastValidatedString[lastValidatedStartIndex..lastValidatedEndIndex].Trim(BNF.Whitespaces);
-    public string LastValidatedString{get;protected set;} = "";
+    public string LastValidatedPart => lastValidatedString[lastValidatedStartIndex..lastValidatedEndIndex].Trim(BNF.Whitespaces);
     public int lastValidatedStartIndex{ get; protected set; } = 0;
     public int lastValidatedEndIndex{ get; protected set; } = 0;
     /// <summary>
@@ -19,6 +18,7 @@ public class Term
     /// This term subterms
     /// </summary>
     public Subterms Subterms{get;protected set;}
+    string lastValidatedString="";
     Func<string, int, int> validate;
     /// <param name="name">Term name</param>
     /// <param name="validate">Reads string from index and returns length of validated symbol</param>
@@ -189,7 +189,7 @@ public class Term
     /// </summary>
     public int Validate(string input, int index = 0)
     {
-        LastValidatedString = "";
+        lastValidatedString = "";
         var skipped = 0;
         try
         {
@@ -201,7 +201,7 @@ public class Term
         }
         catch { }
         var validatedLength = validate(input, index);
-        LastValidatedString=input;
+        lastValidatedString=input;
         lastValidatedStartIndex=index;
         lastValidatedEndIndex=index + validatedLength;
 
