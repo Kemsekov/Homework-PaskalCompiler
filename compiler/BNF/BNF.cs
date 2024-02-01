@@ -95,7 +95,7 @@ public class Term
         return new(constant,
             (s, index) =>
             s[index..(index + constant.Length)] == constant ? constant.Length :
-            throw new Exception($"'{constant}' expected")
+            throw new Exception($"'{constant}' expected on index {index}")
         );
     }
     public Term WithName(string name){
@@ -123,7 +123,7 @@ public class Term
             }
             catch (Exception e)
             {
-                throw new Exception($"Expected term {name} not found\n{e.Message}");
+                throw new Exception($"Expected term {name} not found on index {index}\n{e.Message}");
             }
         }
         )
@@ -180,6 +180,7 @@ public class Term
             name += BNF.Or + t.Name;
         }
         var orTerms = terms.Prepend(this).ToList();
+        var exceptionOrTermsNames = string.Join(", ",orTerms);
         return new(name, (s, index) =>
         {
             int validatedLength = -1;
@@ -194,7 +195,7 @@ public class Term
             }
             if (validatedLength == -1)
             {
-                throw new Exception($"None of {name} found on '{s}'");
+                throw new Exception($"None of expected terms '{exceptionOrTermsNames}' found on index {index}");
             }
             return validatedLength;
         }

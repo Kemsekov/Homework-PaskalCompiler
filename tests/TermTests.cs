@@ -45,7 +45,8 @@ public class TermTests
 
         var op = Term.OfMany("<op>", ["+", "-"]);
 
-        //it is a bit tricky not to stuck into infinite recursion
+        // it is a bit tricky not to stuck into infinite recursion
+        // you just need to define some logic before recursion hits
         // <expression> ::= <number><op><number> | (<expression>)
         var expression =
             Term
