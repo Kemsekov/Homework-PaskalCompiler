@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Modules;
 
 namespace tests;
@@ -5,60 +6,29 @@ namespace tests;
 public class TermTests
 {
     [Fact]
-    public void Arithmetic()
+    public void OrPriority()
     {
-
-        //<digit>::= char.IsDigit
-        //<letter>::= char.IsLetter
-        //<number>::= <digit>{<digit>}
-        //<name>::= <letter>{<letter>}
-        //<symbol>::= <name>|<number>:|<name>_<number>
-        //<sign>={-}
-        //<addition>::= +|-
-        //<mult> ::= *|/|^|%
-
-        //<simple expression> ::= <sign><symbol>{<op><symbol>}
-        //<expression> ::= <simple expression> | (<simple expression>)
         var letter = new Term("<letter>", s => char.IsLetter(s[0]) ? s[0..1] : throw new Exception("not a letter"));
         var digit = new Term("<digit>", s => char.IsDigit(s[0]) ? s[0..1] : throw new Exception("not a digit"));
 
+        //<number> ::= <digit>{<digit>}
+        var number = digit.Follows(digit.ZeroOrMany()).WithName("<number>");
         //<name> ::= <letter>{<letter>}
         var name = letter.Follows(letter.ZeroOrMany()).WithName("<name>");
 
+        //<variable> ::= <name> | <name>_<number>
+        var variable1 = name.Or(name.Follows("_").Follows(number));
 
-        //<number> ::= <digit>{<digit>}
-        var number = digit.Follows(digit.ZeroOrMany()).WithName("<number>");
+        //<variable> ::= <name>_<number> | <name>
+        var variable2 = name.Follows("_").Follows(number).Or(name);
 
-
-        //<symbol> ::= <name> | <number> | <name>_<number>
-        var symbol = name.Or(number, name.Follows("_").Follows(number)).WithName("<symbol>");
-
-        {
-            name.Validate("vladBochkarev 123");
-            Assert.Equal("vladBochkarev", name.LastValidatedPart);
-            Assert.Throws<Exception>(() => name.Validate("12345"));
-
-            number.Validate("432535 name1");
-            Assert.Equal("432535", number.LastValidatedPart);
-            Assert.Throws<Exception>(() => number.Validate("abcde"));
-
-            symbol.Validate("123");
-            Assert.Equal("123", symbol.LastValidatedPart);
-            symbol.Validate("name");
-            Assert.Equal("name", symbol.LastValidatedPart);
-            symbol.Validate("supername_123");
-            Assert.Equal("supername_123", symbol.LastValidatedPart);
-
-            symbol.Validate("543name");
-            Assert.Equal("543", symbol.LastValidatedPart);
-            symbol.Validate("name123");
-            Assert.Equal("name", symbol.LastValidatedPart);
-
-            symbol.Validate("name_123_name");
-            Assert.Equal("name_123", symbol.LastValidatedPart);
-            symbol.Validate("6542_name_123");
-            Assert.Equal("6542", symbol.LastValidatedPart);
-        }
+        var input = "vlad_123";
+        //will handle shorter term first
+        var res1 = variable1.Validate(input);
+        Assert.Equal("vlad",variable1.LastValidatedPart);
+        //will handle longer term first
+        var res2 = variable2.Validate(input);
+        Assert.Equal(input,variable2.LastValidatedPart);
 
     }
     [Fact]
@@ -78,16 +48,17 @@ public class TermTests
         //it is a bit tricky not to stuck into infinite recursion
         // <expression> ::= <number><op><number> | (<expression>)
         var expression =
-            number
-            .Follows(op)
-            .Follows(number)
-            .OfSelf(t =>
-                Term.OfConstant("(")
-                .Follows(t)
-                .Follows(Term.OfConstant(")"))
-                .Or(t))
+            Term
+            .OfSelf_(t =>
+                number.Follows(op)
+                .Follows(number)
+                .Or(
+                    Term.OfConstant("(")
+                    .Follows(t)
+                    .Follows(Term.OfConstant(")"))
+                )
+            )
             .WithName("<expression>");
-
         expression.Validate("123+86");
         Assert.Equal("123+86", expression.LastValidatedPart);
 

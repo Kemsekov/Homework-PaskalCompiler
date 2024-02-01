@@ -57,6 +57,11 @@ public class Term
         this.validate = (s, index) => validate(s[index..]).Length;
         Name = name;
     }
+    public static Term OfSelf_(Func<Term,Term> termCreation){
+        var t = new Term("",s=>s);
+        return t.OfSelf(termCreation);
+    }
+
     /// <summary>
     /// Creates a term that can reference to itself in creation process<br/>
     /// for example: `bool expr`=`variable` `bool op` `variable` | not `bool expr`<br/>
@@ -161,6 +166,12 @@ public class Term
             Subterms=Subterms
         };
     }
+    /// <summary>
+    /// Adds Or terms that validated in same order as added, and validation is terminated
+    /// when any of terms successfully validates input. <br/>
+    /// So put longer sentences in the beginning of Or terms in order for validator to try 
+    /// first longer terms and then if fails shorter ones
+    /// </summary>
     public Term Or(params Term[] terms)
     {
         var name = Name;
@@ -168,7 +179,7 @@ public class Term
         {
             name += BNF.Or + t.Name;
         }
-        var orTerms = terms.Append(this).ToList();
+        var orTerms = terms.Prepend(this).ToList();
         return new(name, (s, index) =>
         {
             int validatedLength = -1;
@@ -210,9 +221,6 @@ public class Term
             }
         }
         catch { }
-        if(Name=="likes|wants"){
-            System.Console.WriteLine('a');
-        }
         var validatedLength = validate(input, index);
         LastValidatedPart = input[index..(index + validatedLength)].Trim(BNF.Whitespaces);
 

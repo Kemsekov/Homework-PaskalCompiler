@@ -86,7 +86,21 @@ public class SyntaxAnalysis
     bool ReferencedType(){
         throw new NotImplementedException();
     }
-
+    void VariableRecord(){
+        Variable();
+    }
+    void VariableFile(){
+        Variable();
+    }
+    void Name(){
+        Accept(ident);
+    }
+    void FieldName(){
+        Accept(ident);
+    }
+    void WholeWithoutSign(){
+        Accept(intc);
+    }
     private void Statement()
     {
         throw new NotImplementedException();
@@ -116,9 +130,10 @@ public class SyntaxAnalysis
     {
         throw new NotImplementedException();
     }
+
     void Expression()
     {
-
+        
     }
     void Programme()
     {
