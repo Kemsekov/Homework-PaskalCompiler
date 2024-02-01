@@ -41,7 +41,7 @@ public class TermTests
         var number = digit.Follows(digit.ZeroOrMany()).WithName("<number>");
         number.Validate("432535 name1");
         Assert.Equal("432535", number.LastValidatedPart);
-        Assert.Throws<Exception>(() => number.Validate("abcde"));
+        Assert.Throws<TermException>(() => number.Validate("abcde"));
 
         var op = Term.OfMany("<op>", ["+", "-"]);
 
@@ -73,7 +73,7 @@ public class TermTests
         Assert.Equal("(((119-53)))", expression.LastValidatedPart);
 
         //must throws on uneven amount of brackets
-        Assert.Throws<Exception>(() => expression.Validate("((1+43)"));
+        Assert.Throws<TermException>(() => expression.Validate("((1+43)"));
     }
     [Fact]
     public void OfMany()
@@ -101,8 +101,8 @@ public class TermTests
         statement.Validate("arina wants marshmallow");
         Assert.Equal("arina wants marshmallow", statement.LastValidatedPart);
 
-        Assert.Throws<Exception>(() => statement.Validate("vlad hates grechka"));
-        Assert.Throws<Exception>(() => statement.Validate("arina sent message"));
+        Assert.Throws<TermException>(() => statement.Validate("vlad hates grechka"));
+        Assert.Throws<TermException>(() => statement.Validate("arina sent message"));
     }
     [Fact]
     public void Or()
@@ -132,8 +132,8 @@ public class TermTests
         statement.Validate("arina wants marshmallow");
         Assert.Equal("arina wants marshmallow", statement.LastValidatedPart);
 
-        Assert.Throws<Exception>(() => statement.Validate("vlad hates grechka"));
-        Assert.Throws<Exception>(() => statement.Validate("arina sent message"));
+        Assert.Throws<TermException>(() => statement.Validate("vlad hates grechka"));
+        Assert.Throws<TermException>(() => statement.Validate("arina sent message"));
     }
     [Fact]
     public void ZeroOrMany()
@@ -180,7 +180,7 @@ public class TermTests
         Assert.Equal("var bfg:=int,   dad:=float,dad:=string, dad:=int", varDef.LastValidatedPart);
 
         //missing var
-        Assert.Throws<Exception>(() => varDef.Validate("a:=int,b:=float"));
+        Assert.Throws<TermException>(() => varDef.Validate("a:=int,b:=float"));
 
         //unknown long type, so last pattern does not match
         varDef.Validate("var a:=int,b:=long");
@@ -223,8 +223,8 @@ public class TermTests
         programDef.Validate("   int program(type)");
         programDef.Validate("\n void  program (string) ");
 
-        Assert.Throws<Exception>(() => programDef.Validate("main(type) yey"));
-        Assert.Throws<Exception>(() => programDef.Validate("type123 func (type)"));
+        Assert.Throws<TermException>(() => programDef.Validate("main(type) yey"));
+        Assert.Throws<TermException>(() => programDef.Validate("type123 func (type)"));
     }
     [Fact]
     public void Follows()
@@ -252,8 +252,8 @@ public class TermTests
         together.Validate(" Vlad was happy");
         together.Validate("Nina is sad");
         together.Validate("Nikita  will be   working");
-        Assert.Throws<Exception>(() => together.Validate("small name"));
-        Assert.Throws<Exception>(() => together.Validate("GoodName was unknownmood"));
-        Assert.Throws<Exception>(() => together.Validate("GoodName badtime sad"));
+        Assert.Throws<TermException>(() => together.Validate("small name"));
+        Assert.Throws<TermException>(() => together.Validate("GoodName was unknownmood"));
+        Assert.Throws<TermException>(() => together.Validate("GoodName badtime sad"));
     }
 }
