@@ -7,7 +7,10 @@ public class Term
     /// <summary>
     /// Part that was validated in latest call of <see cref="Validate(string)"/>, or empty string if validation was unsuccessful
     /// </summary>
-    public string LastValidatedPart { get; protected set; } = "";
+    public string LastValidatedPart => LastValidatedString[lastValidatedStartIndex..lastValidatedEndIndex].Trim(BNF.Whitespaces);
+    public string LastValidatedString{get;protected set;} = "";
+    public int lastValidatedStartIndex{ get; protected set; } = 0;
+    public int lastValidatedEndIndex{ get; protected set; } = 0;
     /// <summary>
     /// Zero or many calls validated parts on last validate call
     /// </summary>
@@ -186,7 +189,7 @@ public class Term
     /// </summary>
     public int Validate(string input, int index = 0)
     {
-        LastValidatedPart = "";
+        LastValidatedString = "";
         var skipped = 0;
         try
         {
@@ -198,7 +201,9 @@ public class Term
         }
         catch { }
         var validatedLength = validate(input, index);
-        LastValidatedPart = input[index..(index + validatedLength)].Trim(BNF.Whitespaces);
+        LastValidatedString=input;
+        lastValidatedStartIndex=index;
+        lastValidatedEndIndex=index + validatedLength;
 
         return validatedLength + skipped;
     }
