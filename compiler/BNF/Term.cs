@@ -78,6 +78,9 @@ public class Term
             throw new TermException($"'{constant}' expected on index {index}", constant, index)
         );
     }
+    public static implicit operator Term(string s){
+        return Term.OfConstant(s);
+    }
     public Term WithName(string name)
     {
         this.Name = name;
@@ -121,6 +124,9 @@ public class Term
             }
             
         };
+    }
+    public static Term operator &(Term t1, Term t2){
+        return t1.Follows(t2);
     }
     /// <summary>
     /// Zero or many of term t
@@ -202,6 +208,9 @@ public class Term
                 OrSubterms = orTermsValidationInfo
             }
         };
+    }
+    public static Term operator |(Term t1, Term t2){
+        return t1.Or(t2);
     }
     /// <summary>
     /// Validates a string and cuts validated part from the beginning of the string, returning left not validated part

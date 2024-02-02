@@ -82,6 +82,7 @@ public class TermTests
         expression.Validate("94-388");
         Assert.Equal("94-388", expression.LastValidatedPart);
 
+
         expression.Validate("(119-53)");
         Assert.Equal("(119-53)", expression.LastValidatedPart);
 
