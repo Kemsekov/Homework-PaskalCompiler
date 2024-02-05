@@ -17,9 +17,9 @@ public class TermTests
         var follows = action.Follows(manyUnderscore).Follows(names).ZeroOrMany();
 
         follows.Validate("");
-        Assert.Equal("",follows.LastValidatedPart);
+        Assert.Equal("",follows.Matches.Match);
         follows.Validate("likes __ vlad dislikes__ dima wants sasha");
-        Assert.Equal("likes __ vlad dislikes__ dima wants sasha",follows.LastValidatedPart);
+        Assert.Equal("likes __ vlad dislikes__ dima wants sasha",follows.Matches.Match);
     }
     [Fact]
     public void OrPriority()
@@ -41,10 +41,10 @@ public class TermTests
         var input = "vlad_123";
         //will handle shorter term first
         var res1 = variable1.Validate(input);
-        Assert.Equal("vlad",variable1.LastValidatedPart);
+        Assert.Equal("vlad",variable1.Matches.Match);
         //will handle longer term first
         var res2 = variable2.Validate(input);
-        Assert.Equal(input,variable2.LastValidatedPart);
+        Assert.Equal(input,variable2.Matches.Match);
 
     }
     [Fact]
@@ -56,7 +56,7 @@ public class TermTests
         //<number> ::= <digit>{<digit>}
         var number = digit.Follows(digit.ZeroOrMany()).WithName("<number>");
         number.Validate("432535 name1");
-        Assert.Equal("432535", number.LastValidatedPart);
+        Assert.Equal("432535", number.Matches.Match);
         Assert.Throws<TermException>(() => number.Validate("abcde"));
 
         var op = Term.OfMany("<op>", ["+", "-"]);
@@ -77,17 +77,17 @@ public class TermTests
             )
             .WithName("<expression>");
         expression.Validate("123+86");
-        Assert.Equal("123+86", expression.LastValidatedPart);
+        Assert.Equal("123+86", expression.Matches.Match);
 
         expression.Validate("94-388");
-        Assert.Equal("94-388", expression.LastValidatedPart);
+        Assert.Equal("94-388", expression.Matches.Match);
 
 
         expression.Validate("(119-53)");
-        Assert.Equal("(119-53)", expression.LastValidatedPart);
+        Assert.Equal("(119-53)", expression.Matches.Match);
 
         expression.Validate("(((119-53)))");
-        Assert.Equal("(((119-53)))", expression.LastValidatedPart);
+        Assert.Equal("(((119-53)))", expression.Matches.Match);
 
         //must throws on uneven amount of brackets
         Assert.Throws<TermException>(() => expression.Validate("((1+43)"));
@@ -110,13 +110,13 @@ public class TermTests
         var statement = name.Follows(action).Follows(name);
 
         statement.Validate("vlad likes potatoes");
-        Assert.Equal("vlad likes potatoes", statement.LastValidatedPart);
+        Assert.Equal("vlad likes potatoes", statement.Matches.Match);
 
         statement.Validate("dima dislikes carrots");
-        Assert.Equal("dima dislikes carrots", statement.LastValidatedPart);
+        Assert.Equal("dima dislikes carrots", statement.Matches.Match);
 
         statement.Validate("arina wants marshmallow");
-        Assert.Equal("arina wants marshmallow", statement.LastValidatedPart);
+        Assert.Equal("arina wants marshmallow", statement.Matches.Match);
 
         Assert.Throws<TermException>(() => statement.Validate("vlad hates grechka"));
         Assert.Throws<TermException>(() => statement.Validate("arina sent message"));
@@ -141,13 +141,13 @@ public class TermTests
         var statement = name.Follows(action).Follows(name);
 
         statement.Validate("vlad likes potatoes");
-        Assert.Equal("vlad likes potatoes", statement.LastValidatedPart);
+        Assert.Equal("vlad likes potatoes", statement.Matches.Match);
 
         statement.Validate("dima dislikes carrots");
-        Assert.Equal("dima dislikes carrots", statement.LastValidatedPart);
+        Assert.Equal("dima dislikes carrots", statement.Matches.Match);
 
         statement.Validate("arina wants marshmallow");
-        Assert.Equal("arina wants marshmallow", statement.LastValidatedPart);
+        Assert.Equal("arina wants marshmallow", statement.Matches.Match);
 
         Assert.Throws<TermException>(() => statement.Validate("vlad hates grechka"));
         Assert.Throws<TermException>(() => statement.Validate("arina sent message"));
@@ -188,32 +188,32 @@ public class TermTests
                 .ZeroOrMany()
             );
         varDef.Validate("\n var  a:=int");
-        Assert.Equal("var  a:=int", varDef.LastValidatedPart);
+        Assert.Equal("var  a:=int", varDef.Matches.Match);
 
         varDef.Validate("var     a:=int, b:=float");
-        Assert.Equal("var     a:=int, b:=float", varDef.LastValidatedPart);
+        Assert.Equal("var     a:=int, b:=float", varDef.Matches.Match);
 
         varDef.Validate("var bfg:=int,   dad:=float,dad:=string, dad:=int");
-        Assert.Equal("var bfg:=int,   dad:=float,dad:=string, dad:=int", varDef.LastValidatedPart);
+        Assert.Equal("var bfg:=int,   dad:=float,dad:=string, dad:=int", varDef.Matches.Match);
 
         //missing var
         Assert.Throws<TermException>(() => varDef.Validate("a:=int,b:=float"));
 
         //unknown long type, so last pattern does not match
         varDef.Validate("var a:=int,b:=long");
-        Assert.Equal("var a:=int", varDef.LastValidatedPart);
+        Assert.Equal("var a:=int", varDef.Matches.Match);
 
         //unkown symbol =, so the pattern does not match
         varDef.Validate("var a:=int,b:=int,c=float");
-        Assert.Equal("var a:=int,b:=int", varDef.LastValidatedPart);
+        Assert.Equal("var a:=int,b:=int", varDef.Matches.Match);
 
         // // unused commas
         varDef.Validate("var a:=int,b:=int,,,");
-        Assert.Equal("var a:=int,b:=int", varDef.LastValidatedPart);
+        Assert.Equal("var a:=int,b:=int", varDef.Matches.Match);
 
         // // unused comma
         varDef.Validate("var a:=int,b:=int,");
-        Assert.Equal("var a:=int,b:=int", varDef.LastValidatedPart);
+        Assert.Equal("var a:=int,b:=int", varDef.Matches.Match);
     }
     [Fact]
     public void OfConstant()

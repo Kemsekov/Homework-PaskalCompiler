@@ -8,14 +8,10 @@ public class Term
     /// Term name
     /// </summary>
     public string Name { get; protected set; }
-        /// <summary>
-    /// Part that was validated in latest call of <see cref="Term.Validate"/>, or empty string if validation was unsuccessful
-    /// </summary>
-    public string LastValidatedPart => ValidationInfo.LastValidatedPart;
     /// <summary>
     /// Information about validation in latest call of <see cref="Validate(string)"/>
     /// </summary>
-    public ValidationInfo ValidationInfo{get;protected set;}
+    public Matches Matches{get;protected set;}
     public Subterms? Subterms{get;protected set;} = null;
     Func<string, int, int> validate;
     /// <param name="name">Term name</param>
@@ -24,7 +20,7 @@ public class Term
     {
         this.validate = validate;
         Name = name;
-        ValidationInfo= new(this,0,0,"",null);
+        Matches= new(this,0,0,"",null);
     }
     /// <param name="name">Term name</param>
     /// <param name="validate">returns validated substring from the beginning of input string</param>
@@ -32,7 +28,7 @@ public class Term
     {
         this.validate = (s, index) => validate(s[index..]).Length;
         Name = name;
-        ValidationInfo= new(this,0,0,"",null);
+        Matches= new(this,0,0,"",null);
     }
     ///<inheritdoc cref="Term.OfSelf(Func{Term, Term})"/>
     public static Term OfSelf_(Func<Term, Term> termCreation)
@@ -54,7 +50,7 @@ public class Term
         var self = this;
         var term = termCreation(self);
         self.validate = term.validate;
-        self.ValidationInfo = term.ValidationInfo;
+        self.Matches = term.Matches;
         return term;
     }
     /// <summary>
@@ -97,17 +93,17 @@ public class Term
     public Term Follows(Term t)
     {
         var name = this.Name + t.Name;
-        var left = ValidationInfo.Clone();
-        var right = t.ValidationInfo.Clone();
+        var left = Matches.Clone();
+        var right = t.Matches.Clone();
         return new(name, (s, index) =>
         {
             var validatedLength = 0;
             try
             {
                 validatedLength += Validate(s, index);
-                left.Update(ValidationInfo);
+                left.Update(Matches);
                 validatedLength += t.Validate(s, index + validatedLength);
-                right.Update(t.ValidationInfo);
+                right.Update(t.Matches);
                 return validatedLength;
             }
             catch (Exception e)
@@ -134,7 +130,7 @@ public class Term
     public Term ZeroOrMany()
     {
         var name = BNF.ZeroOrManyOpening + Name + BNF.ZeroOrManyClosing;
-        var added = new List<ValidationInfo>();
+        var added = new List<Matches>();
         return new(name, (s, index) =>
         {
             var validatedLength = 0;
@@ -145,7 +141,7 @@ public class Term
                     var valid = Validate(s, index + validatedLength);
                     validatedLength += valid;
                     if (valid != 0)
-                        added.Add(ValidationInfo.Clone());
+                        added.Add(Matches.Clone());
                     else break;
                 }
                 catch
@@ -177,11 +173,11 @@ public class Term
             name += BNF.Or + t.Name;
         }
         var orTerms = terms.Prepend(this).ToList();
-        var orTermsValidationInfo = orTerms.Select(t=>t.ValidationInfo).ToList();
+        var orTermsMatches = orTerms.Select(t=>t.Matches).ToList();
         var exceptionOrTermsNames = string.Join(", ", orTerms);
         return new(name, (s, index) =>
         {
-            orTermsValidationInfo.Clear();
+            orTermsMatches.Clear();
             int validatedLength = -1;
             var count = orTerms.Count;
             for(int i = 0;i<count;i++)
@@ -191,7 +187,7 @@ public class Term
                 try
                 {
                     validatedLength = t.Validate(s, index);
-                    orTermsValidationInfo.Add(t.ValidationInfo.Clone());
+                    orTermsMatches.Add(t.Matches.Clone());
                 }
                 catch { }
             }
@@ -205,7 +201,7 @@ public class Term
         {
             Subterms=new()
             {
-                OrSubterms = orTermsValidationInfo
+                OrSubterms = orTermsMatches
             }
         };
     }
@@ -217,7 +213,7 @@ public class Term
     /// </summary>
     public int Validate(string input, int index = 0)
     {
-        ValidationInfo.Update(this,0,0,"",null);
+        Matches.Update(this,0,0,"",null);
         var skipped = 0;
         try
         {
@@ -230,7 +226,7 @@ public class Term
         catch { }
         var validatedLength = validate(input, index);
 
-        ValidationInfo.Update(this,index,index + validatedLength,input,Subterms?.DeepCopy());
+        Matches.Update(this,index,validatedLength,input,Subterms?.DeepCopy());
 
         return validatedLength + skipped;
     }

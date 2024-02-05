@@ -1,6 +1,7 @@
 namespace Modules;
 
 using System;
+using System.Linq;
 using static Lexical;
 public class SyntaxAnalysis
 {
@@ -133,8 +134,80 @@ public class SyntaxAnalysis
 
     void Expression()
     {
-        
+        SimpleExpression();
+
+        if(RelationOperations.Contains(Symbol)){
+            RelationOperation();
+            SimpleExpression();
+        }
     }
+    byte[] RelationOperations = [latergreater,greater,later,laterequal,greaterequal,insy];
+    private void RelationOperation()
+    {
+        var relation = RelationOperations.FirstOrDefault(v=>v==Symbol,(byte)0);
+        if(relation==0){
+            InputOutput.LineErrors().Add(
+                new Error
+                {
+                    ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
+                    Position = LexicalAnalysis.Pos,
+                    SpecificErrorDescription = $"Expected relation operation"
+                }
+            );
+            return;
+        }
+        Accept(relation);
+    }
+
+    byte[] AdditiveOperations = [plus,minus,orsy];
+    private void SimpleExpression()
+    {
+        SignOrEmpty();
+        Term();
+        while(AdditiveOperations.Contains(Symbol) && !InputOutput.EOF){
+            AdditiveOperation();
+            Term();
+        }
+
+    }
+
+    private void AdditiveOperation()
+    {
+        var op = AdditiveOperations.FirstOrDefault(s=>s==Symbol,(byte)0);
+        if(op==0){
+            InputOutput.LineErrors().Add(
+                new Error
+                {
+                    ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
+                    Position = LexicalAnalysis.Pos,
+                    SpecificErrorDescription = $"Expected additive operation `+ - or`"
+                }
+            );
+            return;
+        }
+        Accept(op);
+    }
+
+    private void SignOrEmpty()
+    {
+        byte[] signs = [plus,minus];
+        var sign = signs.FirstOrDefault(s=>s==Symbol,(byte)0);
+        if(sign == 0) return;
+        Accept(sign);
+    }
+    byte[] MultiplicativeOperations = [star,divsy,slash,modsy,andsy];
+    private void Term()
+    {
+        Factor();
+        while(MultiplicativeOperations.Contains(Symbol)){
+            // MultiplicativeOperation();
+            Factor();
+        }
+    }
+    void Factor(){
+        Variable();
+    }
+
     void Programme()
     {
         Accept(programsy);
