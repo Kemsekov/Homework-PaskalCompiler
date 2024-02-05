@@ -71,7 +71,7 @@ public class Term
         return new(constant,
             (s, index) =>
             s[index..(index + constant.Length)] == constant ? constant.Length :
-            throw new TermException($"'{constant}' expected on index {index}", constant, index)
+            throw new TermException($"Index {index} expected '{constant}'", constant, index)
         );
     }
     public static implicit operator Term(string s){
@@ -98,18 +98,24 @@ public class Term
         return new(name, (s, index) =>
         {
             var validatedLength = 0;
-            try
-            {
+            try{
                 validatedLength += Validate(s, index);
                 left.Update(Matches);
-                validatedLength += t.Validate(s, index + validatedLength);
+            }
+            catch (Exception e){
+                throw new TermException($"Index {index} Expected '{Name}'\n{e.Message}", Name, index);
+            }
+            
+            try{
+                index+=validatedLength;
+                validatedLength += t.Validate(s, index);
                 right.Update(t.Matches);
-                return validatedLength;
             }
-            catch (Exception e)
-            {
-                throw new TermException($"Expected term {name} not found on index {index}\n{e.Message}", name, index);
+            catch (Exception e){
+                throw new TermException($"Index {index} Expected '{t.Name}'\n{e.Message}", t.Name, index);
             }
+
+            return validatedLength;
         }
         )
         {
@@ -159,6 +165,7 @@ public class Term
             }
         };
     }
+    
     /// <summary>
     /// Adds Or terms that validated in same order as added, and validation is terminated
     /// when any of terms successfully validates input. <br/>
@@ -174,7 +181,7 @@ public class Term
         }
         var orTerms = terms.Prepend(this).ToList();
         var orTermsMatches = orTerms.Select(t=>t.Matches).ToList();
-        var exceptionOrTermsNames = string.Join(", ", orTerms);
+        var exceptionOrTermsNames = string.Join(",\n", orTerms);
         return new(name, (s, index) =>
         {
             orTermsMatches.Clear();
@@ -193,7 +200,7 @@ public class Term
             }
             if (validatedLength == -1)
             {
-                throw new TermException($"None of expected terms '{exceptionOrTermsNames}' found on index {index}", name, index);
+                throw new TermException($"Index {index} expected any of\n{exceptionOrTermsNames}\n", name, index);
             }
             return validatedLength;
         }
@@ -209,7 +216,7 @@ public class Term
         return t1.Or(t2);
     }
     /// <summary>
-    /// Validates a string and cuts validated part from the beginning of the string, returning left not validated part
+    /// Validates a string
     /// </summary>
     public int Validate(string input, int index = 0)
     {
