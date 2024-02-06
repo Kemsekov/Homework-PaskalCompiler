@@ -11,19 +11,15 @@ public class RecursiveTermsCreationTests
         var terms = new RecursiveTermsCreation();
         terms.Add("digit", Digit);
         terms.Add("number", () => terms["digit"] & terms["digit"].ZeroOrMany());
-        var op = (Term) "*" | "+";
+        var mul = (Term) "*";
+        var additive = (Term) "+";
+        terms.Add("simple expr", () => 
+            terms["term"] & (additive & terms["term"]).ZeroOrMany());
+        
+        terms.Add("term", () => terms["factor"] & (mul & terms["factor"]).ZeroOrMany());
+        terms.Add("factor",()=>terms["number"] | ("(" & terms["simple expr"] & ")"));
 
-        terms.Add("expr", () => 
-            terms["number"] & 
-            (op & terms["number"]).ZeroOrMany() |
-            "(" & terms["expr"] & ")");
-
-        terms.Add("long expr",()=>
-            terms["expr"] & 
-            (op & terms["expr"]).ZeroOrMany() |
-            "(" & terms["long expr"] & ")"
-        );
-        var expr = terms["long expr"];
+        var expr = terms["simple expr"];
 
         var good = new[]{
             "918223",
@@ -52,7 +48,14 @@ public class RecursiveTermsCreationTests
             "12+82*2)",
         };
         foreach(var t in bad){
-            Assert.Throws<TermException>(()=>expr.Validate(t));
+            try{
+                var len = expr.Validate(t);
+                //it means not full string was processed so input is wrong
+                Assert.True(len<t.Length);
+            }
+            catch(TermException){
+                continue;
+            }
         }
     }
     [Fact]
