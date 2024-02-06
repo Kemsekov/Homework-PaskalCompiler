@@ -51,6 +51,8 @@ public class Term
         var term = termCreation(self);
         self.validate = term.validate;
         self.Matches = term.Matches;
+        self.Subterms = term.Subterms;
+        self.Name=term.Name;
         return term;
     }
     /// <summary>

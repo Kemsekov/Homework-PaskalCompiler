@@ -18,21 +18,23 @@ public class SyntaxAnalysis
     public ErrorDescriptions ErrorDescriptions { get; }
     public InputOutput InputOutput { get; }
     byte Symbol => LexicalAnalysis.Symbol;
-    /// <summary>
-    /// A set of symbols that is acceptable after key symbol
-    /// </summary>
-    public IDictionary<byte, HashSet<byte>> StartSymbols;
     void CompoundStatement()
     {
         Accept(beginsy); 
-        Statement();
+        Operator();
         while (Symbol == semicolon)
         {
             LexicalAnalysis.NextSym(); 
-            Statement();
+            Operator();
         }
         Accept(endsy);
     }
+
+    private void Operator()
+    {
+        throw new NotImplementedException();
+    }
+
     void Block()
     {
         LabelPart();
@@ -40,14 +42,20 @@ public class SyntaxAnalysis
         TypePart();
         VarPart();
         ProcfuncPart();
-        StatementPart();
+        OperatorPart();
     }
+
+    private void OperatorPart()
+    {
+        throw new NotImplementedException();
+    }
+
     void WhileStatement()
     {
         Accept(whilesy);
         Expression();
         Accept(dosy);
-        Statement();
+        Operator();    
     }
     void ForStatement()
     {
@@ -59,16 +67,21 @@ public class SyntaxAnalysis
             LexicalAnalysis.NextSym();
         Expression();
         Accept(dosy);
-        Statement();
+        Operator();
     }
     bool type()
     {
-        return SimpleType() ||  ComposedType() || ReferencedType();
+        // return SimpleType() ||  ComposedType() || ReferencedType();
+        return false;
     }
     //<простой тип> ::= <перечислимый тип> | <ограниченный тип> | <имя типа>
-    bool SimpleType()
+    void SimpleType()
     {
-        return EnumType() || IndexedType() || TypeName();
+        if(Symbol=='('){
+            EnumType();
+            return;
+        }
+        // if(Constants.Contains(symbol))
     }
     bool TypeName(){
         return Accept(ident);
@@ -101,15 +114,6 @@ public class SyntaxAnalysis
     }
     void WholeWithoutSign(){
         Accept(intc);
-    }
-    private void Statement()
-    {
-        throw new NotImplementedException();
-    }
-
-    private void StatementPart()
-    {
-        throw new NotImplementedException();
     }
 
     private void ProcfuncPart()
@@ -144,19 +148,7 @@ public class SyntaxAnalysis
     byte[] RelationOperations = [latergreater,greater,later,laterequal,greaterequal,insy];
     private void RelationOperation()
     {
-        var relation = RelationOperations.FirstOrDefault(v=>v==Symbol,(byte)0);
-        if(relation==0){
-            InputOutput.LineErrors().Add(
-                new Error
-                {
-                    ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                    Position = LexicalAnalysis.Pos,
-                    SpecificErrorDescription = $"Expected relation operation"
-                }
-            );
-            return;
-        }
-        Accept(relation);
+        Accept(RelationOperations);
     }
 
     byte[] AdditiveOperations = [plus,minus,orsy];
@@ -168,24 +160,11 @@ public class SyntaxAnalysis
             AdditiveOperation();
             Term();
         }
-
     }
 
     private void AdditiveOperation()
     {
-        var op = AdditiveOperations.FirstOrDefault(s=>s==Symbol,(byte)0);
-        if(op==0){
-            InputOutput.LineErrors().Add(
-                new Error
-                {
-                    ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                    Position = LexicalAnalysis.Pos,
-                    SpecificErrorDescription = $"Expected additive operation `+ - or`"
-                }
-            );
-            return;
-        }
-        Accept(op);
+        Accept(AdditiveOperations);
     }
 
     private void SignOrEmpty()
@@ -200,12 +179,35 @@ public class SyntaxAnalysis
     {
         Factor();
         while(MultiplicativeOperations.Contains(Symbol)){
-            // MultiplicativeOperation();
+            MultiplicativeOperation();
             Factor();
         }
     }
+    private void MultiplicativeOperation()
+    {
+        Accept(MultiplicativeOperations);
+    }
+    byte[] ConstantWithoutSign = [intc,floatc,stringc,nilsy];
     void Factor(){
-        Variable();
+        if(Symbol== ident){
+            Variable();
+            return;
+        }
+        if(ConstantWithoutSign.Contains(Symbol)){
+            Accept(ConstantWithoutSign);
+            return;
+        }
+        if(Symbol==leftpar){
+            Accept(leftpar);
+            Expression();
+            Accept(rightpar);
+        }
+        //TODO: function declaration
+        //TODO: set
+        if(Symbol==notsy){
+            Accept(notsy);
+            Factor();
+        }
     }
 
     void Programme()
@@ -281,11 +283,27 @@ public class SyntaxAnalysis
         Accept(ifsy);
         Expression();
         Accept(thensy);
-        Statement();
+        Operator();
         if(Symbol == elsesy){
             LexicalAnalysis.NextSym();
-            Statement();
+            Operator();
         }
+    }
+    bool Accept(byte[] anyOfThisSymbols){
+        var op = anyOfThisSymbols.FirstOrDefault(s=>s==Symbol,(byte)0);
+        if(op==0){
+            var symbols = string.Join(" ",anyOfThisSymbols.Select(s=>Keywords.InverseKw[s]));
+            InputOutput.LineErrors().Add(
+                new Error
+                {
+                    ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
+                    Position = LexicalAnalysis.Pos,
+                    SpecificErrorDescription = $"Expected one of operation {symbols}"
+                }
+            );
+            return false;
+        }
+        return Accept(op);
     }
     /// <summary>
     /// Accepts current symbol if it is equal to <paramref name="expectedSymbol"/> and moves to next symbol
