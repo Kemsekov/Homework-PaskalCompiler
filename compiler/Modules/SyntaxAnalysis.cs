@@ -1,3 +1,4 @@
+#pragma warning disable
 namespace Modules;
 
 using System;
@@ -19,6 +20,7 @@ public class SyntaxAnalysis
     public ErrorDescriptions ErrorDescriptions { get; }
     public InputOutput InputOutput { get; }
     byte Symbol => LexicalAnalysis.Symbol;
+#region BasicMethods
     static byte[] CombineSymbols(byte[][] startsSymbols)
     {
         return startsSymbols.SelectMany(s => s).Distinct().ToArray();
@@ -119,6 +121,148 @@ public class SyntaxAnalysis
             return false;
         }
     }
+#endregion
+#region Block&Sections
+    public void Block(){
+        MarksSection();
+        ConstantsSection();
+        // TypesSection(); //not in my task
+        VariablesSection();
+        ProcedureAndFunctionsSection();
+        OperatorsSection();
+    }
+    static byte[] ProcedureAndFunctionsSectionStart = ProcedureOrFunctionDefinitionStart.Append((byte)0).ToArray();
+    void ProcedureAndFunctionsSection(){
+        Repeat(
+            ()=>{ProcedureOrFunctionDefinition();Accept(semicolon);},
+            ProcedureOrFunctionDefinitionStart,
+            0
+        );
+    }
+    static byte[] OperatorsSectionStart = CompoundOperatorStart;
+    void OperatorsSection(){
+        CompoundOperator();
+    }
+    static byte[] ProcedureOrFunctionDefinitionStart = CombineSymbols([FunctionDefinitionStart,/*ProcedureDefinitionStart*/]);
+    void ProcedureOrFunctionDefinition(){
+        Or([
+            // ("procedure definition",ProcedureDefinition,ProcedureDefinitionStart), // not in my task
+            ("function definition",FunctionDefinition,FunctionDefinitionStart),
+        ]);
+    }
+    
+    static byte[] MarksSectionStart = [labelsy,0];
+    void MarksSection(){
+        Repeat(
+            ()=>{
+                Accept(labelsy);
+                Mark();
+                Repeat(
+                    ()=>{
+                        Accept(comma);
+                        Mark();
+                    },
+                    [comma],
+                    0
+                );
+            },
+            [labelsy],
+            0,1
+        );
+        Accept(semicolon);
+    }
+    static byte[] ConstantsSectionStart = [constsy,0];
+    void ConstantsSection(){
+        Repeat(
+            ()=>{
+                Accept(constsy);
+                ConstDefinition();
+                Accept(semicolon);
+                Repeat(
+                    ()=>{
+                        ConstDefinition();
+                        Accept(semicolon);
+                    },
+                    ConstDefinitionStart,
+                    0
+                );
+            },
+            [constsy],
+            0,1
+        );
+    }
+    void VariablesSection(){
+        Repeat(
+            ()=>{
+                Accept(varsy);
+                Repeat(()=>{
+                        SameTypeVariablesDescription();
+                        Accept(semicolon);
+                    },
+                    SameTypeVariablesDescriptionStart,
+                    1
+                );
+            },
+            [varsy],
+            0,1
+        );
+    }
+    static byte[] SameTypeVariablesDescriptionStart = [ident];
+    void SameTypeVariablesDescription(){
+        Accept(ident);
+        Repeat(
+            ()=>{Accept(comma);Accept(ident);},
+            [comma],
+            0
+        );
+        Accept(colon);
+        Type_();
+    }
+    static byte[] TypeStart = []; // TODO:
+    void Type_(){
+        Or([
+            ("simple type",SimpleType,SimpleTypeStart), //I will limit my types to simple ones
+            // ("compound type",CompoundType,CompoundTypeStart),
+            // ("reference type",ReferenceType,ReferenceTypeStart),
+        ]);
+    }
+    static byte[] ConstDefinitionStart = [ident];
+    //ошибка в bnf файле '<определение константы> ::= <имя> = <константа>'
+    void ConstDefinition(){
+        Accept(ident);
+        Accept(equal);
+        Constant();
+    }
+    static byte[] SimpleTypeStart = CombineSymbols([EnumTypeStart,RangedTypeStart,TypeNameStart]);
+    void SimpleType(){
+        Or([
+            ("enum type",EnumType,EnumTypeStart),
+            ("ranged type",RangedType,RangedTypeStart),
+            ("type name",TypeName,TypeNameStart),
+        ]);
+    }
+    static byte[] EnumTypeStart = [(byte)'('];
+    void EnumType(){
+        Accept('(');
+        Accept(ident);
+        Repeat(
+            ()=>{Accept(comma);Accept(ident);},
+            [comma],
+            0
+        );
+        Accept(')');
+    }
+    static byte[] RangedTypeStart = ConstantStart;
+    void RangedType(){
+        Constant();
+        Accept(twopoints);
+        Constant();
+    }
+    static byte[] TypeNameStart = [ident];
+    void TypeName(){
+        Accept(ident);
+    }
+#endregion
 #region Expression
     static byte[] RelationOperation = [equal, latergreater, later, greater, laterequal, greaterequal, insy];
     static byte[] ExpressionStart = SimpleExpressionStart;
@@ -181,7 +325,7 @@ public class SyntaxAnalysis
         Or([
             ("variable",Variable,VariableStart),
             ("Constant without sign",()=>Accept(ConstantWithoutSign),ConstantWithoutSign),
-            ("(",()=>{Accept((byte)'(');Expression();Accept((byte)')');},[(byte)'(']),
+            ("(",()=>{Accept('(');Expression();Accept(')');},[(byte)'(']),
             ("function definition",FunctionDefinition,FunctionDefinitionStart),
             ("set",Set,SetStart),
             ("not",()=>{Accept(notsy);Factor();},[notsy]),
@@ -328,7 +472,8 @@ public class SyntaxAnalysis
             0, 1
         );
     }
-    #endregion
+#endregion
+#region Operators
     static byte[] AssignOperatorStart = CombineSymbols([VariableStart,FunctionNameStart]);
     void AssignOperator(){
         Or([
@@ -423,7 +568,6 @@ public class SyntaxAnalysis
             ("append",AppendOperator,AppendOperatorStart),
         ]);
     }
-#region append_operator
     static byte[] AppendOperatorStart = [withsy];
     void AppendOperator(){
         Accept(withsy);
@@ -441,7 +585,6 @@ public class SyntaxAnalysis
             0
         );
     }
-#endregion
     static byte[] CompoundOperatorStart = [beginsy];
     void CompoundOperator(){
         Accept(beginsy);
@@ -533,6 +676,8 @@ public class SyntaxAnalysis
             ("do while cycle",RepeatCycle,RepeatCycleStart),
         ]);
     }
+#endregion
+#region Cycles
     static byte[] WhileCycleStart = [whilesy];
     void WhileCycle(){
         Accept(whilesy);
@@ -578,6 +723,5 @@ public class SyntaxAnalysis
         Accept(untilsy);
         Expression();
     }
-
-
+#endregion
 }
