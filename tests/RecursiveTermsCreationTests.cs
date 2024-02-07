@@ -17,11 +17,13 @@ public class RecursiveTermsCreationTests
             terms["term"] & (additive & terms["term"]).ZeroOrMany());
         
         terms.Add("term", () => terms["factor"] & (mul & terms["factor"]).ZeroOrMany());
-        terms.Add("factor",()=>terms["number"] | ("(" & terms["simple expr"] & ")"));
+        terms.Add("factor",()=>terms["number"] | "(" & terms["simple expr"] & ")");
 
         var expr = terms["simple expr"];
 
         var good = new[]{
+            "1+(2*(3+4))+(5*(6+7))",
+            "7+12*(1+11)*9+92",
             "918223",
             "((((1))))+2",
             "123+938",
@@ -31,8 +33,6 @@ public class RecursiveTermsCreationTests
             "(11)",
             "(1+11)",
             "(1+11)*9",
-            "7+12*(1+11)*9+92",
-            "1+(2*(3+4))+(5*(6+7))",
         };
         foreach(var t in good){
             expr.Validate(t);

@@ -14,12 +14,12 @@ public class TermTests
         var manyUnderscore = 
             Term.OfConstant("_").ZeroOrMany();
         
-        var follows = action.Follows(manyUnderscore).Follows(names).ZeroOrMany();
+        var follows = action.Follows(action).Follows(manyUnderscore).Follows(names).ZeroOrMany();
 
         follows.Validate("");
         Assert.Equal("",follows.Matches.Match);
-        follows.Validate("likes __ vlad dislikes__ dima wants sasha");
-        Assert.Equal("likes __ vlad dislikes__ dima wants sasha",follows.Matches.Match);
+        follows.Validate("likes dislikes __ vlad dislikes wants__ dima wants likes sasha");
+        Assert.Equal("likes dislikes __ vlad dislikes wants__ dima wants likes sasha",follows.Matches.Match);
     }
     [Fact]
     public void OrPriority()
