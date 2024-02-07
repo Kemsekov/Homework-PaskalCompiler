@@ -64,6 +64,11 @@ public class InputOutput
         {
             lineErrors = Errors[lineNumber] = new List<Error>();
         }
+        
+        //remove repeating errors
+        lineErrors = lineErrors.DistinctBy(e=>e.Position.CharNumber).ToList();
+        Errors[lineNumber]=lineErrors;
+
         return lineErrors;
     }
     /// <summary>
@@ -118,14 +123,38 @@ public class InputOutput
         else
             Pos.CharNumber++;
     }
-    public void SwitchPosition(TextPosition pos){
+    public void SwitchPosition(TextPosition pos)
+    {
+
         Pos = pos;
+
+        //remove all errors in current line after current pos
+        ClearErrorsAfter(pos);
+
         CurrentLine = Program.Lines[pos.LineNumber];
         var lastLine = Program.Lines[^1];
-        if(pos.LineNumber!=(ulong)(Program.Lines.Length-1) && pos.CharNumber!=lastLine.Length-1){
-            EOF=false;
+        if (pos.LineNumber != (ulong)(Program.Lines.Length - 1) && pos.CharNumber != lastLine.Length - 1)
+        {
+            EOF = false;
         }
     }
+
+    private void ClearErrorsAfter(TextPosition pos)
+    {
+        var currentErrors = LineErrors(pos.LineNumber);
+        var errorsAfterCharNumber =
+            currentErrors.Where(e => e.Position.CharNumber >= pos.CharNumber)
+            .ToList();
+        foreach (var e in errorsAfterCharNumber)
+            currentErrors.Remove(e);
+
+        //remove all errors in lines after pos
+        for (ulong i = pos.LineNumber + 1; i < (ulong)Program.Lines.Length; i++){
+            if(Errors.ContainsKey(i))
+                Errors[i].Clear();
+        }
+    }
+
     /// <returns>
     /// True if under given line some error is found
     /// </returns>

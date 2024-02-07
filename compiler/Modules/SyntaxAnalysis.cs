@@ -20,63 +20,120 @@ public class SyntaxAnalysis
     public ErrorDescriptions ErrorDescriptions { get; }
     public InputOutput InputOutput { get; }
     byte Symbol => LexicalAnalysis.Symbol;
-#region BasicMethods
+    #region BasicMethods
+    /// <summary>
+    /// Combines many starter symbols into one array
+    /// </summary>
     static byte[] CombineSymbols(byte[][] startsSymbols)
     {
         return startsSymbols.SelectMany(s => s).Distinct().ToArray();
     }
     /// <summary>
-    /// Do Or operation on a set of methods
+    /// Do Or operation on a set of methods. 
     /// </summary>
     /// <param name="m">Start symbols must not intersect. If startSymbols contains zero '0' then it will mean empty symbol is acceptable</param>
     void Or((string name, Action method, byte[] startSymbols)[] m)
     {
+        if (AcceptHadError) return;
+        var startSymbol = Symbol;
+        var startSymbolValue = LexicalAnalysis.SymbolValue;
+        var startPos = LexicalAnalysis.Pos;
+
         var allowedEmptySymbol = false;
-        foreach (var (name,met, start) in m)
+
+        for(int i = 0;i<m.Length;i++)
         {
+            var (name, met, start) = m[i];
+            // if after met() AcceptHadError is true
+            // it means current method failed
+            // and we need to try another one
             if (start.Contains(Symbol))
             {
+                AcceptHadError = false;
                 met();
+                //restoring old positions removes errors
+                //but if we only have one handler it makes sense
+                //to remain it's errors
+                if(i!=m.Length-1)
+                if (AcceptHadError)
+                {
+                    LexicalAnalysis.Symbol = startSymbol;
+                    LexicalAnalysis.SymbolValue = startSymbolValue;
+                    InputOutput.SwitchPosition(startPos);
+                    continue;
+                }
                 return;
             }
-            allowedEmptySymbol|=start.Contains((byte)0);
+            allowedEmptySymbol |= start.Contains((byte)0);
         }
         //if none of or statements have worked out, but or statement was allowed then we just return
-        if(allowedEmptySymbol) return;
-        var symbols = string.Join(" ", m.Select(s => s.name));
-        InputOutput.LineErrors().Add(
-            new Error
-            {
-                ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                Position = LexicalAnalysis.Pos,
-                SpecificErrorDescription = $"Expected one of '{symbols}'"
-            }
-        );
+        if (allowedEmptySymbol) return;
+        var symbols = string.Join(", ", m.Select(s => s.name));
+        // InputOutput.LineErrors().Add(
+        //     new Error
+        //     {
+        //         ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
+        //         Position = LexicalAnalysis.Pos,
+        //         SpecificErrorDescription = $"Expected one of '{symbols}'"
+        //     }
+        // );
     }
     /// <summary>
     /// Repeats method at least minRepeats and until maxRepeats
     /// </summary>
     void Repeat(Action method, byte[] startSymbols, int minRepeats = 0, int maxRepeats = int.MaxValue)
     {
+        if (AcceptHadError) return;
         //call method() min times
         //then while startSymbols.Contains(Symbol) call method() 
         var repeats = 0;
         for (; repeats < minRepeats; repeats++)
             method();
+
+        //if error happened on required iterations 
+        //then we just stop
+        if (AcceptHadError) return;
+
+        // if error happened on additional operations
+        // then just restore old position and return
+        var startSymbol = Symbol;
+        var startSymbolValue = LexicalAnalysis.SymbolValue;
+        var startPos = LexicalAnalysis.Pos;
+
         for (; repeats < maxRepeats; repeats++)
         {
-            if (startSymbols.Contains(Symbol))
+            if (startSymbols.Contains(Symbol) && !AcceptHadError)
+            {
                 method();
+                if(AcceptHadError) break;
+                //save new valid position
+                startSymbol = Symbol;
+                startSymbolValue = LexicalAnalysis.SymbolValue;
+                startPos = LexicalAnalysis.Pos;
+            }
             else
                 break;
         }
+        //restore to latest valid position
+        if (AcceptHadError)
+        {
+            LexicalAnalysis.Symbol = startSymbol;
+            LexicalAnalysis.SymbolValue = startSymbolValue;
+            InputOutput.SwitchPosition(startPos);
+            AcceptHadError=false;
+        }
     }
+    /// <summary>
+    /// Sets to true when any Accept encounters error. When it is true no further analysis can be done.
+    /// </summary>
+    bool AcceptHadError = false;
     bool Accept(char[] anyOfThisSymbols)
     {
         return Accept(anyOfThisSymbols.Select(v => (byte)v).ToArray());
     }
     bool Accept(byte[] anyOfThisSymbols)
     {
+        if (AcceptHadError) return false;
         var op = anyOfThisSymbols.FirstOrDefault(s => s == Symbol, (byte)0);
         if (op == 0)
         {
@@ -89,6 +146,7 @@ public class SyntaxAnalysis
                     SpecificErrorDescription = $"Expected one of operation {symbols}"
                 }
             );
+            AcceptHadError = true;
             return false;
         }
         return Accept(op);
@@ -103,6 +161,7 @@ public class SyntaxAnalysis
     /// <returns>True if symbol is accepted.</returns>
     bool Accept(byte expectedSymbol)
     {
+        if (AcceptHadError) return false;
         if (Symbol == expectedSymbol)
         {
             LexicalAnalysis.NextSym();
@@ -110,76 +169,103 @@ public class SyntaxAnalysis
         }
         else
         {
+            var kw = Keywords.InverseKw[expectedSymbol];
+            if(kw=="end"){
+                var a = 1;
+            }
             InputOutput.LineErrors().Add(
                 new Error
                 {
                     ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
                     Position = LexicalAnalysis.Pos,
-                    SpecificErrorDescription = $"Expected {Keywords.InverseKw[expectedSymbol]}"
+                    SpecificErrorDescription = $"Expected {kw}"
                 }
             );
+            AcceptHadError = true;
             return false;
         }
     }
-#endregion
-#region Block&Sections
-    public void Block(){
-        MarksSection();
-        ConstantsSection();
-        // TypesSection(); //not in my task
-        VariablesSection();
-        ProcedureAndFunctionsSection();
-        OperatorsSection();
+    #endregion
+    #region Block&Sections
+    static byte[] BlockStart;
+    public void Block()
+    {
+        while (!InputOutput.EOF)
+        {
+            if (AcceptHadError)
+                LexicalAnalysis.NextSym();
+            while (!InputOutput.EOF && !BlockStart.Contains(Symbol))
+            {
+                LexicalAnalysis.NextSym();
+            }
+
+            AcceptHadError = false;
+            LabelsSection();
+            ConstantsSection();
+            // TypesSection();// not in my task
+            VariablesSection();
+            ProcedureAndFunctionsSection();
+            OperatorsSection();
+        }
     }
-    static byte[] ProcedureAndFunctionsSectionStart = ProcedureOrFunctionDefinitionStart.Append((byte)0).ToArray();
-    void ProcedureAndFunctionsSection(){
+    static byte[] ProcedureAndFunctionsSectionStart;
+    void ProcedureAndFunctionsSection()
+    {
         Repeat(
-            ()=>{ProcedureOrFunctionDefinition();Accept(semicolon);},
+            () => { ProcedureOrFunctionDefinition(); Accept(semicolon); },
             ProcedureOrFunctionDefinitionStart,
             0
         );
     }
-    static byte[] OperatorsSectionStart = CompoundOperatorStart;
-    void OperatorsSection(){
+    static byte[] OperatorsSectionStart;
+    void OperatorsSection()
+    {
         CompoundOperator();
     }
-    static byte[] ProcedureOrFunctionDefinitionStart = CombineSymbols([FunctionDefinitionStart,/*ProcedureDefinitionStart*/]);
-    void ProcedureOrFunctionDefinition(){
+    static byte[] ProcedureOrFunctionDefinitionStart;
+    void ProcedureOrFunctionDefinition()
+    {
         Or([
             // ("procedure definition",ProcedureDefinition,ProcedureDefinitionStart), // not in my task
             ("function definition",FunctionDefinition,FunctionDefinitionStart),
         ]);
     }
-    
-    static byte[] MarksSectionStart = [labelsy,0];
-    void MarksSection(){
+
+    static byte[] LabelsSectionStart;
+    void LabelsSection()
+    {
         Repeat(
-            ()=>{
+            () =>
+            {
                 Accept(labelsy);
-                Mark();
+                Label();
                 Repeat(
-                    ()=>{
+                    () =>
+                    {
                         Accept(comma);
-                        Mark();
+                        Label();
                     },
                     [comma],
                     0
                 );
+                Accept(semicolon);
             },
             [labelsy],
-            0,1
+            0, 1
         );
-        Accept(semicolon);
     }
-    static byte[] ConstantsSectionStart = [constsy,0];
-    void ConstantsSection(){
+    static byte[] ConstantsSectionStart;
+    void ConstantsSection()
+    {
         Repeat(
-            ()=>{
+            () =>
+            {
                 Accept(constsy);
                 ConstDefinition();
                 Accept(semicolon);
                 Repeat(
-                    ()=>{
+                    () =>
+                    {
                         ConstDefinition();
                         Accept(semicolon);
                     },
@@ -188,84 +274,97 @@ public class SyntaxAnalysis
                 );
             },
             [constsy],
-            0,1
+            0, 1
         );
     }
-    void VariablesSection(){
+    static byte[] VariablesSectionStart;
+    void VariablesSection()
+    {
         Repeat(
-            ()=>{
+            () =>
+            {
                 Accept(varsy);
-                Repeat(()=>{
-                        SameTypeVariablesDescription();
-                        Accept(semicolon);
-                    },
+                Repeat(() =>
+                {
+                    SameTypeVariablesDescription();
+                    Accept(semicolon);
+                },
                     SameTypeVariablesDescriptionStart,
                     1
                 );
             },
             [varsy],
-            0,1
+            0, 1
         );
     }
-    static byte[] SameTypeVariablesDescriptionStart = [ident];
-    void SameTypeVariablesDescription(){
+    static byte[] SameTypeVariablesDescriptionStart;
+    void SameTypeVariablesDescription()
+    {
         Accept(ident);
         Repeat(
-            ()=>{Accept(comma);Accept(ident);},
+            () => { Accept(comma); Accept(ident); },
             [comma],
             0
         );
         Accept(colon);
         Type_();
     }
-    static byte[] TypeStart = []; // TODO:
-    void Type_(){
+    static byte[] TypeStart;
+    void Type_()
+    {
         Or([
             ("simple type",SimpleType,SimpleTypeStart), //I will limit my types to simple ones
             // ("compound type",CompoundType,CompoundTypeStart),
             // ("reference type",ReferenceType,ReferenceTypeStart),
         ]);
     }
-    static byte[] ConstDefinitionStart = [ident];
+    static byte[] ConstDefinitionStart;
     //ошибка в bnf файле '<определение константы> ::= <имя> = <константа>'
-    void ConstDefinition(){
+    void ConstDefinition()
+    {
         Accept(ident);
         Accept(equal);
         Constant();
     }
-    static byte[] SimpleTypeStart = CombineSymbols([EnumTypeStart,RangedTypeStart,TypeNameStart]);
-    void SimpleType(){
+    static byte[] SimpleTypeStart;
+    void SimpleType()
+    {
         Or([
             ("enum type",EnumType,EnumTypeStart),
-            ("ranged type",RangedType,RangedTypeStart),
-            ("type name",TypeName,TypeNameStart),
+            ("type name or ranged type",TypeNameOrRangedType,TypeNameOrRangedTypeStart)
         ]);
     }
-    static byte[] EnumTypeStart = [(byte)'('];
-    void EnumType(){
+    static byte[] EnumTypeStart;
+    void EnumType()
+    {
         Accept('(');
         Accept(ident);
         Repeat(
-            ()=>{Accept(comma);Accept(ident);},
+            () => { Accept(comma); Accept(ident); },
             [comma],
             0
         );
         Accept(')');
     }
-    static byte[] RangedTypeStart = ConstantStart;
-    void RangedType(){
+    static byte[] TypeNameOrRangedTypeStart;
+    void TypeNameOrRangedType()
+    {
         Constant();
-        Accept(twopoints);
-        Constant();
+        Repeat(
+            () => { Accept(twopoints); Constant(); },
+            [twopoints],
+            0, 1
+        );
     }
-    static byte[] TypeNameStart = [ident];
-    void TypeName(){
+    static byte[] TypeNameStart;
+    void TypeName()
+    {
         Accept(ident);
     }
-#endregion
-#region Expression
-    static byte[] RelationOperation = [equal, latergreater, later, greater, laterequal, greaterequal, insy];
-    static byte[] ExpressionStart = SimpleExpressionStart;
+    #endregion
+    #region Expression
+    static byte[] RelationOperation;
+    static byte[] ExpressionStart;
     void Expression()
     {
         SimpleExpression();
@@ -279,9 +378,9 @@ public class SyntaxAnalysis
             0, 1
         );
     }
-    static byte[] SignSymbols = [plus, minus];
-    static byte[] AdditiveOperation = [plus, minus, orsy];
-    static byte[] SimpleExpressionStart = CombineSymbols([SignSymbols, TermStart]);
+    static byte[] SignSymbols;
+    static byte[] AdditiveOperation;
+    static byte[] SimpleExpressionStart;
     void SimpleExpression()
     {
         Repeat(
@@ -303,8 +402,8 @@ public class SyntaxAnalysis
             0
         );
     }
-    static byte[] MultiplicativeOperation = [star, slash, divsy, modsy, andsy];
-    static byte[] TermStart = FactorStart;
+    static byte[] MultiplicativeOperation;
+    static byte[] TermStart;
     void Term()
     {
         Factor();
@@ -318,8 +417,8 @@ public class SyntaxAnalysis
             0
         );
     }
-    static byte[] ConstantWithoutSign = [intc, floatc, stringc, nilsy];
-    static byte[] FactorStart = CombineSymbols([VariableStart, ConstantWithoutSign, [(byte)'('], FunctionDefinitionStart, SetStart, [notsy]]);
+    static byte[] ConstantWithoutSign;
+    static byte[] FactorStart;
     void Factor()
     {
         Or([
@@ -331,7 +430,7 @@ public class SyntaxAnalysis
             ("not",()=>{Accept(notsy);Factor();},[notsy]),
         ]);
     }
-    static byte[] VariableStart = CombineSymbols([FullVariableStart, VariableComponentStart]);
+    static byte[] VariableStart;
     void Variable()
     {
         Or([
@@ -340,17 +439,17 @@ public class SyntaxAnalysis
             // ("specified variable",SpecifiedVariable,SpecifiedVariableStart), //idk what '↑' symbol is
         ]);
     }
-    static byte[] FullVariableStart = VariableNameStart;
+    static byte[] FullVariableStart;
     void FullVariable()
     {
         VariableName();
     }
-    static byte[] VariableNameStart = [ident];
+    static byte[] VariableNameStart;
     void VariableName()
     {
         Accept(VariableNameStart);
     }
-    static byte[] VariableComponentStart = CombineSymbols([IndexedVariableStart, FieldDefinitionStart]);
+    static byte[] VariableComponentStart;
     void VariableComponent()
     {
         Or([
@@ -359,7 +458,7 @@ public class SyntaxAnalysis
             // ("file buffer",FileBuffer,FileBufferStart), // idk what file buffer '↑' symbol is
         ]);
     }
-    static byte[] IndexedVariableStart = VariableArrayStart;
+    static byte[] IndexedVariableStart;
     void IndexedVariable()
     {
         VariableArray();
@@ -371,29 +470,29 @@ public class SyntaxAnalysis
         );
         Accept((byte)']');
     }
-    static byte[] VariableArrayStart = VariableStart;
+    static byte[] VariableArrayStart;
     void VariableArray()
     {
         Variable();
     }
-    static byte[] FieldDefinitionStart = VariableRecordStart;
+    static byte[] FieldDefinitionStart;
     void FieldDefinition()
     {
         VariableRecord();
         Accept(point);
         FieldName();
     }
-    static byte[] VariableRecordStart = VariableStart;
+    static byte[] VariableRecordStart;
     void VariableRecord()
     {
         Variable();
     }
-    static byte[] FieldNameStart = [ident];
+    static byte[] FieldNameStart;
     void FieldName()
     {
         Accept(ident);
     }
-    static byte[] FunctionDefinitionStart = FunctionNameStart;
+    static byte[] FunctionDefinitionStart;
     void FunctionDefinition()
     {
         FunctionName();
@@ -413,12 +512,12 @@ public class SyntaxAnalysis
             0, 1
         );
     }
-    static byte[] FunctionNameStart = [ident];
+    static byte[] FunctionNameStart;
     void FunctionName()
     {
         Accept(ident);
     }
-    byte[] ActualParameterStart = CombineSymbols([ExpressionStart, VariableStart, ProcedureNameStart, FunctionNameStart]);
+    static byte[] ActualParameterStart;
     void ActualParameter()
     {
         Or([
@@ -428,12 +527,12 @@ public class SyntaxAnalysis
             ("function name",FunctionName,FunctionNameStart),
         ]);
     }
-    static byte[] ProcedureNameStart = [ident];
+    static byte[] ProcedureNameStart;
     void ProcedureName()
     {
         Accept(ident);
     }
-    static byte[] SetStart = [(byte)'['];
+    static byte[] SetStart;
     void Set()
     {
         Accept('[');
@@ -441,7 +540,7 @@ public class SyntaxAnalysis
         Accept(']');
     }
     //add zero to list so empty symbol is also accepted
-    static byte[] ElementsListStart = ElementStart.Append((byte)0).ToArray();
+    static byte[] ElementsListStart;
     void ElementsList()
     {
         Repeat(
@@ -458,7 +557,7 @@ public class SyntaxAnalysis
             0, 1
         );
     }
-    static byte[] ElementStart = ExpressionStart;
+    static byte[] ElementStart;
     void Element()
     {
         Expression();
@@ -472,67 +571,73 @@ public class SyntaxAnalysis
             0, 1
         );
     }
-#endregion
-#region Operators
-    static byte[] AssignOperatorStart = CombineSymbols([VariableStart,FunctionNameStart]);
-    void AssignOperator(){
+    #endregion
+    #region Operators
+    static byte[] AssignOperatorStart;
+    void AssignOperator()
+    {
         Or([
             ("variable",()=>{
                 Variable();
-                Accept(equal);
+                Accept(assign);
                 Expression();
             },VariableStart),
             ("function name",()=>{
                 FunctionName();
-                Accept(equal);
+                Accept(assign);
                 Expression();
             },FunctionNameStart)
         ]);
     }
-    static byte[] IfOperatorStart = [ifsy];
-    void IfOperator(){
+    static byte[] IfOperatorStart;
+    void IfOperator()
+    {
         Accept(ifsy);
         Expression();
         Accept(thensy);
         Operator();
         Repeat(
-            ()=>{
+            () =>
+            {
                 Accept(elsesy);
+                //approx sqrt example
+                //it fails to find operator
+                // TODO: 
                 Operator();
             },
             [elsesy],
-            0,1
+            0, 1
         );
     }
-    static byte[] OperatorStart = CombineSymbols([UnmarkedOperatorStart,MarkStart]);
-    void Operator(){
+    static byte[] OperatorStart;
+    void Operator()
+    {
         Or([
-            ("unmarked operator",UnmarkedOperator,UnmarkedOperatorStart),
-            ("mark",()=>{Mark();UnmarkedOperator();},MarkStart),
+            ("unlabeled operator",UnlabeledOperator,UnlabeledOperatorStart),
+            ("label",()=>{Label();UnlabeledOperator();},LabelStart),
         ]);
     }
-    static byte[] UnmarkedOperatorStart = CombineSymbols([SimpleOperatorStart,ComplexOperatorStart]);
-    void UnmarkedOperator(){
+    static byte[] UnlabeledOperatorStart;
+    void UnlabeledOperator()
+    {
         Or([
             ("simple operator",SimpleOperator,SimpleOperatorStart),
             ("complex operator",ComplexOperator,ComplexOperatorStart),
         ]);
     }
-    static byte[] SimpleOperatorStart = 
-        CombineSymbols(
-            [AssignOperatorStart,ProcedureOperatorStart,GotoOperatorStart])
-        .Append((byte)0)
-        .ToArray();
-    void SimpleOperator(){
-        var orPart = ()=>Or([
+    static byte[] SimpleOperatorStart;
+    void SimpleOperator()
+    {
+        var orPart = () => Or([
             (":=",AssignOperator,AssignOperatorStart),
             ("procedure",ProcedureOperator,ProcedureOperatorStart),
             ("goto",GotoOperator,GotoOperatorStart)
         ]);
-        Repeat(orPart,SimpleOperatorStart,0,1);
+        Repeat(orPart, SimpleOperatorStart, 0, 1);
     }
-    static byte[] ProcedureOperatorStart = ProcedureNameStart;
-    void ProcedureOperator(){
+    static byte[] ProcedureOperatorStart;
+    void ProcedureOperator()
+    {
         ProcedureName();
         Repeat(
             () =>
@@ -550,17 +655,20 @@ public class SyntaxAnalysis
             0, 1
         );
     }
-    static byte[] GotoOperatorStart = [gotosy];
-    void GotoOperator(){
+    static byte[] GotoOperatorStart;
+    void GotoOperator()
+    {
         Accept(gotosy);
-        Mark();
+        Label();
     }
-    static byte[] MarkStart = [intc];
-    void Mark(){
+    static byte[] LabelStart;
+    void Label()
+    {
         Accept(intc);
     }
-    static byte[] ComplexOperatorStart = CombineSymbols([CompoundOperatorStart,SelectOperatorStart,CycleOperatorStart,AppendOperatorStart]);
-    void ComplexOperator(){
+    static byte[] ComplexOperatorStart;
+    void ComplexOperator()
+    {
         Or([
             ("compound",CompoundOperator,CompoundOperatorStart),
             ("select",SelectOperator,SelectOperatorStart),
@@ -568,49 +676,55 @@ public class SyntaxAnalysis
             ("append",AppendOperator,AppendOperatorStart),
         ]);
     }
-    static byte[] AppendOperatorStart = [withsy];
-    void AppendOperator(){
+    static byte[] AppendOperatorStart;
+    void AppendOperator()
+    {
         Accept(withsy);
         VariableRecordsList();
         Accept(dosy);
         Operator();
     }
 
-    static byte[] VariableRecordsListStart = VariableRecordStart;
-    void VariableRecordsList(){
+    static byte[] VariableRecordsListStart;
+    void VariableRecordsList()
+    {
         VariableRecord();
         Repeat(
-            ()=>{Accept(comma);VariableRecord();},
+            () => { Accept(comma); VariableRecord(); },
             [comma],
             0
         );
     }
-    static byte[] CompoundOperatorStart = [beginsy];
-    void CompoundOperator(){
+    static byte[] CompoundOperatorStart;
+    void CompoundOperator()
+    {
         Accept(beginsy);
         Operator();
         Repeat(
-            ()=>{Accept(semicolon);Operator();},
+            () => { Accept(semicolon); Operator(); },
             [semicolon],
             0
         );
         Accept(endsy);
     }
-    static byte[] SelectOperatorStart = CombineSymbols([IfOperatorStart,VariantOperatorStart]);
-    void SelectOperator(){
+    static byte[] SelectOperatorStart;
+    void SelectOperator()
+    {
         Or([
             ("if",IfOperator,IfOperatorStart),
             ("variant",VariantOperator,VariantOperatorStart)
         ]);
     }
-    static byte[] VariantOperatorStart = [casesy];
-    void VariantOperator(){
+    static byte[] VariantOperatorStart;
+    void VariantOperator()
+    {
         Accept(casesy);
         Expression();
         Accept(ofsy);
         VariantListItem();
         Repeat(
-            ()=>{
+            () =>
+            {
                 Accept(semicolon);
                 VariantListItem();
             },
@@ -619,36 +733,42 @@ public class SyntaxAnalysis
         );
         Accept(endsy);
     }
-    static byte[] VariantListItemStart = VariantMarksListStart.Append((byte)0).ToArray();
-    void VariantListItem(){
+    static byte[] VariantListItemStart;
+    void VariantListItem()
+    {
         Repeat(
-            ()=>{
-                VariantMarksList();
+            () =>
+            {
+                VariantLabelsList();
                 Accept(colon);
                 Operator();
             },
-            VariantMarksListStart,
-            0,1
+            VariantLabelsListStart,
+            0, 1
         );
     }
-    static byte[] VariantMarksListStart = VariantMarkStart;
-    void VariantMarksList(){
-        VariantMark();
+    static byte[] VariantLabelsListStart;
+    void VariantLabelsList()
+    {
+        VariantLabel();
         Repeat(
-            ()=>{
+            () =>
+            {
                 Accept(comma);
-                VariantMark();
+                VariantLabel();
             },
             [comma],
             0
         );
     }
-    static byte[] VariantMarkStart = ConstantStart;
-    void VariantMark(){
+    static byte[] VariantLabelStart;
+    void VariantLabel()
+    {
         Constant();
     }
-    static byte[] ConstantStart = CombineSymbols([[intc],SignStart,ConstantNameStart,SignStart,[stringc]]);
-    void Constant(){
+    static byte[] ConstantStart;
+    void Constant()
+    {
         Or([
             ("unsigned int constant",()=>Accept(intc),[intc]),
             ("int constant",()=>{Sign();Accept(intc);},SignStart),
@@ -657,63 +777,72 @@ public class SyntaxAnalysis
             ("string constant",()=>Accept(stringc),[stringc])
         ]);
     }
-    static byte[] SignStart = [plus,minus];
-    void Sign(){
+    static byte[] SignStart;
+    void Sign()
+    {
         Or([
             ("+",()=>Accept(plus),[plus]),
             ("-",()=>Accept(minus),[minus]),
         ]);
     }
-    static byte[] ConstantNameStart = [ident];
-    void ConstantName(){
+    static byte[] ConstantNameStart;
+    void ConstantName()
+    {
         Accept(ident);
     }
-    static byte[] CycleOperatorStart = CombineSymbols([WhileCycleStart,ForCycleStart,RepeatCycleStart]);
-    void CycleOperator(){
+    static byte[] CycleOperatorStart;
+    void CycleOperator()
+    {
         Or([
             ("while cycle",WhileCycle,WhileCycleStart),
             ("for cycle",ForCycle,ForCycleStart),
             ("do while cycle",RepeatCycle,RepeatCycleStart),
         ]);
     }
-#endregion
-#region Cycles
-    static byte[] WhileCycleStart = [whilesy];
-    void WhileCycle(){
+    #endregion
+    #region Cycles
+    static byte[] WhileCycleStart;
+    void WhileCycle()
+    {
         Accept(whilesy);
         Expression();
         Accept(dosy);
         Operator();
     }
-    static byte[] ForCycleStart = [forsy];
-    void ForCycle(){
+    static byte[] ForCycleStart;
+    void ForCycle()
+    {
         Accept(forsy);
         CycleParameter();
-        Accept(equal);
+        Accept(assign);
         Expression();
         Direction();
         Expression();
         Accept(dosy);
         Operator();
     }
-    static byte[] CycleParameterStart = [ident];
+    static byte[] CycleParameterStart;
     //in bnf file '<параметр цикла >:= <имя>' is wrong
-    void CycleParameter(){
+    void CycleParameter()
+    {
         Accept(ident);
     }
-    static byte[] DirectionStart = [tosy,downtosy];
-    void Direction(){
+    static byte[] DirectionStart;
+    void Direction()
+    {
         Or([
             ("to",()=>Accept(tosy),[tosy]),
             ("downto",()=>Accept(downtosy),[downtosy]),
         ]);
     }
-    static byte[] RepeatCycleStart = [repeatsy];
-    void RepeatCycle(){
+    static byte[] RepeatCycleStart;
+    void RepeatCycle()
+    {
         Accept(repeatsy);
         Operator();
         Repeat(
-            ()=>{
+            () =>
+            {
                 Accept(semicolon);
                 Operator();
             },
@@ -723,5 +852,81 @@ public class SyntaxAnalysis
         Accept(untilsy);
         Expression();
     }
-#endregion
+    #endregion
+    #region StartSymbolsInitialization
+    static SyntaxAnalysis()
+    {
+        RepeatCycleStart = [repeatsy];
+        DirectionStart = [tosy, downtosy];
+        CycleParameterStart = [ident];
+        ForCycleStart = [forsy];
+        WhileCycleStart = [whilesy];
+        ConstantNameStart = [ident];
+        SignStart = [plus, minus];
+        VariantOperatorStart = [casesy];
+        CompoundOperatorStart = [beginsy];
+        AppendOperatorStart = [withsy];
+        LabelStart = [intc];
+        GotoOperatorStart = [gotosy];
+        IfOperatorStart = [ifsy];
+        ProcedureNameStart = [ident];
+        SetStart = [(byte)'['];
+        FunctionNameStart = [ident];
+        FieldNameStart = [ident];
+        VariableNameStart = [ident];
+        ConstantWithoutSign = [intc, floatc, stringc, nilsy];
+        MultiplicativeOperation = [star, slash, divsy, modsy, andsy];
+        AdditiveOperation = [plus, minus, orsy];
+        SignSymbols = [plus, minus];
+        RelationOperation = [equal, latergreater, later, greater, laterequal, greaterequal, insy];
+        TypeNameStart = [ident];
+        EnumTypeStart = [(byte)'('];
+        ConstDefinitionStart = [ident];
+        SameTypeVariablesDescriptionStart = [ident];
+        VariablesSectionStart = [0, varsy];
+        ConstantsSectionStart = [constsy, 0];
+        LabelsSectionStart = [labelsy, 0];
+        VariableRecordStart = [ident];
+        VariableArrayStart = [ident];
+
+        CycleOperatorStart = CombineSymbols([WhileCycleStart, ForCycleStart, RepeatCycleStart]);
+        ConstantStart = CombineSymbols([[intc], SignStart, ConstantNameStart, SignStart, [stringc]]);
+        VariantLabelStart = ConstantStart;
+        VariantLabelsListStart = VariantLabelStart;
+        VariantListItemStart = VariantLabelsListStart.Append((byte)0).ToArray();
+        SelectOperatorStart = CombineSymbols([IfOperatorStart, VariantOperatorStart]);
+        FullVariableStart = VariableNameStart;
+        ComplexOperatorStart = CombineSymbols([CompoundOperatorStart, SelectOperatorStart, CycleOperatorStart, AppendOperatorStart]);
+        ProcedureOperatorStart = ProcedureNameStart;
+        FunctionDefinitionStart = FunctionNameStart;
+        TypeNameOrRangedTypeStart = ConstantStart;
+        ProcedureOrFunctionDefinitionStart = CombineSymbols([FunctionDefinitionStart,/*ProcedureDefinitionStart*/]);
+        ProcedureAndFunctionsSectionStart = ProcedureOrFunctionDefinitionStart.Append((byte)0).ToArray();
+        OperatorsSectionStart = CompoundOperatorStart;
+        SimpleTypeStart = CombineSymbols([EnumTypeStart, TypeNameOrRangedTypeStart, TypeNameStart]);
+        TypeStart = CombineSymbols([SimpleTypeStart,/*CompoundTypeStart,ReferenceTypeStart*/]);
+        FieldDefinitionStart = VariableRecordStart;
+        IndexedVariableStart = VariableArrayStart;
+        VariableComponentStart = CombineSymbols([IndexedVariableStart, FieldDefinitionStart]);
+        VariableStart = CombineSymbols([FullVariableStart, VariableComponentStart]);
+        VariableRecordsListStart = VariableRecordStart;
+        AssignOperatorStart = CombineSymbols([VariableStart, FunctionNameStart]);
+        SimpleOperatorStart =
+            CombineSymbols([AssignOperatorStart, ProcedureOperatorStart, GotoOperatorStart])
+            .Append((byte)0)
+            .ToArray();
+        UnlabeledOperatorStart = CombineSymbols([SimpleOperatorStart, ComplexOperatorStart]);
+        OperatorStart = CombineSymbols([UnlabeledOperatorStart, LabelStart]);
+        FactorStart = CombineSymbols([VariableStart, ConstantWithoutSign, [(byte)'('], FunctionDefinitionStart, SetStart, [notsy]]);
+        TermStart = FactorStart;
+        SimpleExpressionStart = CombineSymbols([SignSymbols, TermStart]);
+        ExpressionStart = SimpleExpressionStart;
+        ElementStart = ExpressionStart;
+        ElementsListStart = ElementStart.Append((byte)0).ToArray();
+        ActualParameterStart = CombineSymbols([ExpressionStart, VariableStart, ProcedureNameStart, FunctionNameStart]);
+        BlockStart =
+            CombineSymbols([LabelsSectionStart, ConstantsSectionStart, VariablesSectionStart, ProcedureAndFunctionsSectionStart, OperatorsSectionStart])
+            .Where(s => s != 0).ToArray();
+    }
+    #endregion
 }

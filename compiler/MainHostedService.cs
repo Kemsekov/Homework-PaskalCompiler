@@ -2,25 +2,29 @@ using Modules;
 
 public class MainHostedService : BackgroundService
 {
-    public MainHostedService(InputOutput inputOutput,LexicalAnalysis lexicalAnalysis)
+    public MainHostedService(InputOutput inputOutput,LexicalAnalysis lexicalAnalysis,SyntaxAnalysis syntaxAnalysis)
     {
         InputOutput=inputOutput;
         LexicalAnalysis = lexicalAnalysis;
+        SyntaxAnalysis=syntaxAnalysis;
     }
 
     public InputOutput InputOutput { get; }
     public LexicalAnalysis LexicalAnalysis { get; }
+    public SyntaxAnalysis SyntaxAnalysis { get; }
+
     public void PrintProgramErrors()
     {
-        var prevLine = InputOutput.Pos.LineNumber;
         //just read all file and accumulate errors
-        while (!InputOutput.EOF)
-        {
-            // InputOutput.NextChar();
-            LexicalAnalysis.NextSym();
-            System.Console.WriteLine($"{LexicalAnalysis.SymbolValue} \t {LexicalAnalysis.Symbol} \t {Keywords.InverseKw[LexicalAnalysis.Symbol]}");
-        }
-
+        // while (!InputOutput.EOF)
+        // {
+        //     // InputOutput.NextChar();
+        //     LexicalAnalysis.NextSym();
+        //     System.Console.WriteLine($"{LexicalAnalysis.SymbolValue} \t {LexicalAnalysis.Symbol} \t {Keywords.InverseKw[LexicalAnalysis.Symbol]}");
+        // }
+        
+        //just run block of syntax analysis
+        SyntaxAnalysis.Block();
         System.Console.WriteLine("-------PROGRAM-------");
         //print program and errors
         var end = (ulong)InputOutput.Program.Lines.Length;

@@ -23,6 +23,7 @@ public static class AppInstance
         });
         services.AddSingleton<InputOutput>();
         services.AddSingleton<LexicalAnalysis>();
+        services.AddSingleton<SyntaxAnalysis>();
         services.AddHostedService<MainHostedService>();
     }
     public static IHostBuilder CreateHostBuilder(string[] args){

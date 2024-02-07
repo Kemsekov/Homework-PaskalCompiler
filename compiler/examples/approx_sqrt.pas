@@ -13,7 +13,7 @@ begin
     // Initialize y as half of x
     y := x / 2;
     // Initialize e as a small positive number
-    e := 1e-6;
+    e := 0.00001;
     // Repeat until the difference between y and x/y is less than e
     while abs(y - x / y) > e do
     begin
