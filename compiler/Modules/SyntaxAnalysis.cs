@@ -147,15 +147,6 @@ public class SyntaxAnalysis
             else
                 break;
         }
-        //restore to latest valid position
-        if (AcceptHadError)
-        {
-            LexicalAnalysis.Symbol = startSymbol;
-            LexicalAnalysis.SymbolValue = startSymbolValue;
-            InputOutput.SwitchPosition(startPos);
-            InputOutput.ClearErrorsAfter(startPos);
-            AcceptHadError=false;
-        }
     }
     /// <summary>
     /// Sets to true when any Accept encounters error. When it is true no further analysis can be done.
@@ -674,21 +665,16 @@ public class SyntaxAnalysis
     void ProcedureOperator()
     {
         ProcedureName();
+        if(Symbol!='(') return;
+        Accept('(');
+        ActualParameter();
         Repeat(
-            () =>
-            {
-                Accept('(');
-                ActualParameter();
-                Repeat(
-                    () => { Accept(comma); ActualParameter(); },
-                    [comma],
-                    0
-                );
-                Accept(')');
-            },
-            [(byte)'('],
-            0, 1
+            () => { Accept(comma); ActualParameter(); },
+            [comma],
+            0
         );
+        Accept(')');
+
     }
     static byte[] GotoOperatorStart;
     void GotoOperator()
