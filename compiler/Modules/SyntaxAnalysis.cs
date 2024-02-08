@@ -14,6 +14,10 @@ public class SyntaxAnalysis
         ErrorDescriptions = errorDescriptions;
         InputOutput = inputOutput;
     }
+    /// <summary>
+    /// Sets to true when any Accept encounters error. When it is true no further analysis can be done.
+    /// </summary>
+    bool AcceptHadError = false;
     public TextPosition Pos => LexicalAnalysis.Pos;
     public ConfigurationVariables Configuration { get; }
     public LexicalAnalysis LexicalAnalysis { get; }
@@ -46,9 +50,6 @@ public class SyntaxAnalysis
         for (int i = 0; i < m.Length; i++)
         {
             var (name, met, start) = m[i];
-            // if after met() AcceptHadError is true
-            // it means current method failed
-            // and we need to try another one
             if (allowed[i])
             {
                 met();
@@ -148,10 +149,7 @@ public class SyntaxAnalysis
                 break;
         }
     }
-    /// <summary>
-    /// Sets to true when any Accept encounters error. When it is true no further analysis can be done.
-    /// </summary>
-    bool AcceptHadError = false;
+
     bool Accept(char[] anyOfThisSymbols)
     {
         return Accept(anyOfThisSymbols.Select(v => (byte)v).ToArray());
