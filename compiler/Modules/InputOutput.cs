@@ -46,7 +46,7 @@ public class InputOutput
     /// <summary>
     /// True when call of <see cref="NextChar"/> moves cursor to new line 
     /// </summary>
-    public bool IsNewLine{get;private set;} = false;
+    public bool IsNewLine { get; private set; } = false;
     /// <summary>
     /// Total errors counter
     /// </summary>
@@ -64,10 +64,10 @@ public class InputOutput
         {
             lineErrors = Errors[lineNumber] = new List<Error>();
         }
-        
+
         //remove repeating errors
-        lineErrors = lineErrors.DistinctBy(e=>e.Position.CharNumber).ToList();
-        Errors[lineNumber]=lineErrors;
+        lineErrors = lineErrors.DistinctBy(e => e.Position.CharNumber).ToList();
+        Errors[lineNumber] = lineErrors;
 
         return lineErrors;
     }
@@ -100,7 +100,7 @@ public class InputOutput
     /// <param name="line">Sets to current line if not specified</param>
     public int PrintErrorsOnLine(ulong line = ulong.MaxValue)
     {
-        line = line==ulong.MaxValue ? Pos.LineNumber : line;
+        line = line == ulong.MaxValue ? Pos.LineNumber : line;
         if (ErrorsCounter < Variables.ERRMAX && IsErrorOnLine(line))
         {
             return ListErrors(line);
@@ -109,10 +109,10 @@ public class InputOutput
     }
     public void NextChar()
     {
-        IsNewLine=false;
+        IsNewLine = false;
         if (Pos.CharNumber >= CurrentLine.Length - 1)
         {
-            IsNewLine=true;
+            IsNewLine = true;
             CurrentLine = "";
             while (string.IsNullOrEmpty(CurrentLine) || string.IsNullOrWhiteSpace(CurrentLine))
             {
@@ -127,10 +127,6 @@ public class InputOutput
     {
 
         Pos = pos;
-
-        //remove all errors in current line after current pos
-        ClearErrorsAfter(pos);
-
         CurrentLine = Program.Lines[pos.LineNumber];
         var lastLine = Program.Lines[^1];
         if (pos.LineNumber != (ulong)(Program.Lines.Length - 1) && pos.CharNumber != lastLine.Length - 1)
@@ -139,7 +135,7 @@ public class InputOutput
         }
     }
 
-    private void ClearErrorsAfter(TextPosition pos)
+    public void ClearErrorsAfter(TextPosition pos)
     {
         var currentErrors = LineErrors(pos.LineNumber);
         var errorsAfterCharNumber =
@@ -149,10 +145,24 @@ public class InputOutput
             currentErrors.Remove(e);
 
         //remove all errors in lines after pos
-        for (ulong i = pos.LineNumber + 1; i < (ulong)Program.Lines.Length; i++){
-            if(Errors.ContainsKey(i))
+        for (ulong i = pos.LineNumber + 1; i < (ulong)Program.Lines.Length; i++)
+        {
+            if (Errors.ContainsKey(i))
                 Errors[i].Clear();
         }
+    }
+    public bool HaveErrorsAfter(TextPosition pos)
+    {
+        var currentErrors = LineErrors(pos.LineNumber);
+        var errorsAfterCharNumber =
+            currentErrors.Where(e => e.Position.CharNumber >= pos.CharNumber);
+        if(errorsAfterCharNumber.Any()) return true;
+        for (ulong i = pos.LineNumber + 1; i < (ulong)Program.Lines.Length; i++)
+        {
+            if (Errors.ContainsKey(i))
+            if (Errors[i].Any()) return true;
+        }
+        return false;
     }
 
     /// <returns>
@@ -162,7 +172,7 @@ public class InputOutput
     /// <returns></returns>
     public bool IsErrorOnLine(ulong line = ulong.MaxValue)
     {
-        line = line==ulong.MaxValue ? Pos.LineNumber : line;
+        line = line == ulong.MaxValue ? Pos.LineNumber : line;
         if (Errors.TryGetValue(line, out var errors))
         {
             if (errors.Count != 0)
@@ -172,10 +182,12 @@ public class InputOutput
     }
     int ListErrors(ulong line)
     {
-        var printedErrors=0;
+        var printedErrors = 0;
         //handle line errors
         var errors = Errors[line];
         var CurrentLine = this.Program.Lines[line];
+        if (errors.Count == 0) return 0;
+
         foreach (var e in errors)
         {
             if (ErrorsCounter >= Variables.ERRMAX) break;
@@ -191,9 +203,9 @@ public class InputOutput
             var headStr = new string(head);
 
             System.Console.WriteLine($"{headStr}^\n{ErrorDescriptions[e.ErrorCode]}");
-            if(e.SpecificErrorDescription is not null)
+            if (e.SpecificErrorDescription is not null)
                 System.Console.WriteLine(e.SpecificErrorDescription);
-            
+
             System.Console.WriteLine();
             Console.ResetColor();
             ErrorsCounter++;

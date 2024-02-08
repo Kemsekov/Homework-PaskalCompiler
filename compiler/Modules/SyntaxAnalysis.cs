@@ -41,14 +41,20 @@ public class SyntaxAnalysis
 
         var allowedEmptySymbol = false;
 
+        var allowed = m.Select(v=>v.startSymbols.Contains(Symbol)).ToArray();
+
         for(int i = 0;i<m.Length;i++)
         {
             var (name, met, start) = m[i];
             // if after met() AcceptHadError is true
             // it means current method failed
             // and we need to try another one
-            if (start.Contains(Symbol))
+            if (allowed[i])
             {
+                LexicalAnalysis.Symbol = startSymbol;
+                LexicalAnalysis.SymbolValue = startSymbolValue;
+                InputOutput.SwitchPosition(startPos);
+                InputOutput.ClearErrorsAfter(startPos);
                 AcceptHadError = false;
                 met();
                 //restoring old positions removes errors
@@ -57,9 +63,6 @@ public class SyntaxAnalysis
                 if(i!=m.Length-1)
                 if (AcceptHadError)
                 {
-                    LexicalAnalysis.Symbol = startSymbol;
-                    LexicalAnalysis.SymbolValue = startSymbolValue;
-                    InputOutput.SwitchPosition(startPos);
                     continue;
                 }
                 return;
@@ -137,6 +140,8 @@ public class SyntaxAnalysis
         var op = anyOfThisSymbols.FirstOrDefault(s => s == Symbol, (byte)0);
         if (op == 0)
         {
+            if(InputOutput.HaveErrorsAfter(LexicalAnalysis.Pos)) return false;
+
             var symbols = string.Join(" ", anyOfThisSymbols.Select(s => Keywords.InverseKw[s]));
             InputOutput.LineErrors().Add(
                 new Error
@@ -169,6 +174,7 @@ public class SyntaxAnalysis
         }
         else
         {
+            if(InputOutput.HaveErrorsAfter(LexicalAnalysis.Pos)) return false;
             var kw = Keywords.InverseKw[expectedSymbol];
             if(kw=="end"){
                 var a = 1;
@@ -422,10 +428,10 @@ public class SyntaxAnalysis
     void Factor()
     {
         Or([
-            ("variable",Variable,VariableStart),
-            ("Constant without sign",()=>Accept(ConstantWithoutSign),ConstantWithoutSign),
-            ("(",()=>{Accept('(');Expression();Accept(')');},[(byte)'(']),
             ("function definition",FunctionDefinition,FunctionDefinitionStart),
+            ("Constant without sign",()=>Accept(ConstantWithoutSign),ConstantWithoutSign),
+            ("variable",Variable,VariableStart),
+            ("(",()=>{Accept('(');Expression();Accept(')');},[(byte)'(']),
             ("set",Set,SetStart),
             ("not",()=>{Accept(notsy);Factor();},[notsy]),
         ]);
@@ -435,7 +441,7 @@ public class SyntaxAnalysis
     {
         Or([
             ("full variable",FullVariable,FullVariableStart),
-            ("variable",VariableComponent,VariableComponentStart),
+            ("variable component",VariableComponent,VariableComponentStart),
             // ("specified variable",SpecifiedVariable,SpecifiedVariableStart), //idk what '↑' symbol is
         ]);
     }
@@ -701,7 +707,10 @@ public class SyntaxAnalysis
         Accept(beginsy);
         Operator();
         Repeat(
-            () => { Accept(semicolon); Operator(); },
+            () => { 
+                Accept(semicolon); 
+                Repeat(Operator,OperatorStart,0,1);
+            },
             [semicolon],
             0
         );

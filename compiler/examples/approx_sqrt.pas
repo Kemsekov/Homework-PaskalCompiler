@@ -21,6 +21,6 @@ begin
       y := (y + x / y) / 2;
     end;
     {Print the approximate square root of x}
-    writeln('The square root of ', x:0:2, ' is ', y:0:2);
+    writeln('The square root of ', x:2, ' is ', y);
   end;
 end.
