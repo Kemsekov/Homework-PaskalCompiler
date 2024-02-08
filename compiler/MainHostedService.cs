@@ -24,7 +24,7 @@ public class MainHostedService : BackgroundService
         // }
         
         //just run block of syntax analysis
-        SyntaxAnalysis.Block();
+        SyntaxAnalysis.StartBlock();
         System.Console.WriteLine("-------PROGRAM-------");
         //print program and errors
         var end = (ulong)InputOutput.Program.Lines.Length;

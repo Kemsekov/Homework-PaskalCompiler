@@ -33,6 +33,16 @@ public class SyntaxAnalysis
         return startsSymbols.SelectMany(s => s).Distinct().ToArray();
     }
     /// <summary>
+    /// Combines many starter symbols into one array
+    /// </summary>
+    static byte[][] CombineSymbols(byte[][][] startsSymbols)
+    {
+        var res = new byte[2][];
+        var firstLayer =  CombineSymbols(startsSymbols.Select(t=>t[0]).ToArray());
+        var secondLayer = CombineSymbols(startsSymbols.Where(t=>t.Length>1).Select(t=>t[1]).ToArray());
+        return [firstLayer,secondLayer];
+    }
+    /// <summary>
     /// Do Or operation on a set of methods. 
     /// </summary>
     /// <param name="m">Start symbols must not intersect. If startSymbols contains zero '0' then it will mean empty symbol is acceptable</param>
@@ -212,10 +222,10 @@ public class SyntaxAnalysis
     #endregion
     #region Block&Sections
     static byte[] BlockStart;
-    public void Block()
+    public void StartBlock()
     {
 
-        Action[] sections = [LabelsSection, ConstantsSection,/*TypesSection,*/VariablesSection, ProcedureAndFunctionsSection, OperatorsSection];
+        Action[] sections = [LabelsSection, ConstantsSection,TypesSection,VariablesSection, ProcedureAndFunctionsSection, OperatorsSection];
         while (!InputOutput.EOF)
         {
             if (AcceptHadError)
@@ -232,6 +242,19 @@ public class SyntaxAnalysis
                 if (AcceptHadError) break;
             }
         }
+    }
+    public void Block()
+    {
+        LabelsSection();
+        ConstantsSection();
+        TypesSection();
+        VariablesSection();
+        ProcedureAndFunctionsSection();
+        OperatorsSection();
+    }
+    static byte[] TypesSectionStart = [];
+    void TypesSection(){
+        //TODO: 
     }
     static byte[] ProcedureAndFunctionsSectionStart;
     void ProcedureAndFunctionsSection()
@@ -251,7 +274,7 @@ public class SyntaxAnalysis
     void ProcedureOrFunctionDefinition()
     {
         Or([
-            // ("procedure definition",ProcedureDefinition,ProcedureDefinitionStart), // not in my task
+            ("procedure definition",ProcedureDefinition,ProcedureDefinitionStart), // not in my task
             ("function definition",FunctionDefinition,FunctionDefinitionStart),
         ]);
     }
@@ -339,7 +362,7 @@ public class SyntaxAnalysis
     {
         Or([
             ("simple type",SimpleType,SimpleTypeStart), //I will limit my types to simple ones
-            // ("compound type",CompoundType,CompoundTypeStart),
+            ("compound type",CompoundType,CompoundTypeStart),
             // ("reference type",ReferenceType,ReferenceTypeStart),
         ]);
     }
@@ -350,6 +373,40 @@ public class SyntaxAnalysis
         Accept(ident);
         Accept(equal);
         Constant();
+    }
+    static byte[] CompoundTypeStart;
+    void CompoundType(){
+        Or([
+            ("unpacked compound type",UnpackedCompoundType,UnpackedCompoundTypeStart),
+            ("packed compound type",()=>{Accept(packedsy);UnpackedCompoundType();},[packedsy]),
+        ]);
+    }
+    static byte[] UnpackedCompoundTypeStart;
+    void UnpackedCompoundType(){
+        Or([
+            ("regular type",RegularType,RegularTypeStart),
+            // ("combined type",CombinedType,CombinedTypeStart),
+            // ("set type",SetType,SetTypeStart),
+            // ("file type",FileType,FileTypeStart),
+        ]);
+    }
+    static byte[] RegularTypeStart;
+    void RegularType(){
+        Accept(arraysy);
+        Accept('[');
+        SimpleType();
+        Repeat(()=>{Accept(comma);SimpleType();},[comma],0);
+        Accept(']');
+        Accept(ofsy);
+        Type_();
+    }
+    static byte[] CombinedTypeStart = [];
+    void CombinedType(){
+        //TODO: 
+    }
+    static byte[] SetTypeStart = [];
+    void SetType(){
+        //TODO: 
     }
     static byte[] SimpleTypeStart;
     void SimpleType()
@@ -449,18 +506,18 @@ public class SyntaxAnalysis
         Or([
             ("function definition",FunctionDefinition,FunctionDefinitionStart),
             ("Constant without sign",()=>Accept(ConstantWithoutSign),ConstantWithoutSign),
-            ("variable",Variable,VariableStart),
+            ("variable",Variable,VariableStart[0]),
             ("(",()=>{Accept('(');Expression();Accept(')');},[(byte)'(']),
             ("set",Set,SetStart),
             ("not",()=>{Accept(notsy);Factor();},[notsy]),
         ]);
     }
-    static byte[] VariableStart;
+    static byte[][] VariableStart;
     void Variable()
     {
         Or([
-            ("full variable",FullVariable,FullVariableStart),
             ("variable component",VariableComponent,VariableComponentStart),
+            ("full variable",FullVariable,[FullVariableStart]),
             // ("specified variable",SpecifiedVariable,SpecifiedVariableStart), //idk what '↑' symbol is
         ]);
     }
@@ -474,7 +531,7 @@ public class SyntaxAnalysis
     {
         Accept(VariableNameStart);
     }
-    static byte[] VariableComponentStart;
+    static byte[][] VariableComponentStart;
     void VariableComponent()
     {
         Or([
@@ -483,10 +540,11 @@ public class SyntaxAnalysis
             // ("file buffer",FileBuffer,FileBufferStart), // idk what file buffer '↑' symbol is
         ]);
     }
-    static byte[] IndexedVariableStart;
+    static byte[][] IndexedVariableStart;
     void IndexedVariable()
     {
-        VariableArray();
+        // VariableArray(); //TODO: idk how to fix this recursion
+        Accept(ident);
         Accept((byte)'[');
         Repeat(
             () => { Accept(comma); Expression(); },
@@ -500,7 +558,7 @@ public class SyntaxAnalysis
     {
         Variable();
     }
-    static byte[] FieldDefinitionStart;
+    static byte[][] FieldDefinitionStart;
     void FieldDefinition()
     {
         VariableRecord();
@@ -537,6 +595,49 @@ public class SyntaxAnalysis
             0, 1
         );
     }
+    static byte[] ProcedureDefinitionStart;
+    void ProcedureDefinition(){
+        Accept(proceduresy);
+        Accept(ident);
+        Repeat(
+            ()=>{
+                Accept('(');
+                Repeat(()=>{
+                FormalParametersSection();
+                Repeat(
+                    ()=>{Accept(semicolon);FormalParametersSection();},
+                    [semicolon],0
+                );
+                },FormalParametersSectionStart,0,1);
+
+                Accept(')');
+            },
+            [(byte)'('],
+            0,1
+        );
+        Accept(semicolon);
+        Block();
+    }
+    static byte[] FormalParametersSectionStart;
+    void FormalParametersSection(){
+        Or([
+            ("var",()=>{Accept(varsy);ParametersGroup();},[varsy]),
+            ("function",()=>{Accept(functionsy);ParametersGroup();},[functionsy]),
+            ("procedure",()=>{Accept(proceduresy);ParametersGroup();},[proceduresy]),
+            ("ident",ParametersGroup,ParametersGroupStart),
+        ]);
+    }
+    static byte[] ParametersGroupStart;
+    void ParametersGroup(){
+        Accept(ident);
+        Repeat(
+            ()=>{Accept(comma);Accept(ident);},
+            [comma],
+            0
+        );
+        Accept(colon);
+        Accept(ident);
+    }
     static byte[] FunctionNameStart;
     void FunctionName()
     {
@@ -546,10 +647,10 @@ public class SyntaxAnalysis
     void ActualParameter()
     {
         Or([
-            ("expression",Expression,ExpressionStart),
             ("variable",Variable,VariableStart),
-            ("procedure name",ProcedureName,ProcedureNameStart),
-            ("function name",FunctionName,FunctionNameStart),
+            ("expression",Expression,[ExpressionStart]),
+            ("procedure name",ProcedureName,[ProcedureNameStart]),
+            ("function name",FunctionName,[FunctionNameStart]),
         ]);
     }
     static byte[] ProcedureNameStart;
@@ -606,7 +707,7 @@ public class SyntaxAnalysis
                 Variable();
                 Accept(assign);
                 Expression();
-            },VariableStart),
+            },VariableStart[0]),
             ("function name",()=>{
                 FunctionName();
                 Accept(assign);
@@ -625,9 +726,6 @@ public class SyntaxAnalysis
             () =>
             {
                 Accept(elsesy);
-                //approx sqrt example
-                //it fails to find operator
-                // TODO: 
                 Operator();
             },
             [elsesy],
@@ -918,6 +1016,13 @@ public class SyntaxAnalysis
         LabelsSectionStart = [labelsy, 0];
         VariableRecordStart = [ident];
         VariableArrayStart = [ident];
+        RegularTypeStart=[arraysy];
+        ParametersGroupStart=[ident];
+        ProcedureDefinitionStart=[proceduresy];
+
+        TypesSectionStart=[];
+        CombinedTypeStart=[];
+        SetTypeStart=[];
 
         CycleOperatorStart = CombineSymbols([WhileCycleStart, ForCycleStart, RepeatCycleStart]);
         ConstantStart = CombineSymbols([[intc], SignStart, ConstantNameStart, SignStart, [stringc]]);
@@ -930,33 +1035,36 @@ public class SyntaxAnalysis
         ProcedureOperatorStart = ProcedureNameStart;
         FunctionDefinitionStart = FunctionNameStart;
         TypeNameOrRangedTypeStart = ConstantStart;
-        ProcedureOrFunctionDefinitionStart = CombineSymbols([FunctionDefinitionStart,/*ProcedureDefinitionStart*/]);
+        ProcedureOrFunctionDefinitionStart = CombineSymbols([FunctionDefinitionStart,ProcedureDefinitionStart]);
         ProcedureAndFunctionsSectionStart = ProcedureOrFunctionDefinitionStart.Append((byte)0).ToArray();
         OperatorsSectionStart = CompoundOperatorStart;
         SimpleTypeStart = CombineSymbols([EnumTypeStart, TypeNameOrRangedTypeStart, TypeNameStart]);
         TypeStart = CombineSymbols([SimpleTypeStart,/*CompoundTypeStart,ReferenceTypeStart*/]);
-        FieldDefinitionStart = VariableRecordStart;
-        IndexedVariableStart = VariableArrayStart;
+        FieldDefinitionStart = [VariableRecordStart,[point]];
+        IndexedVariableStart = [VariableArrayStart,[(byte)'[']];
         VariableComponentStart = CombineSymbols([IndexedVariableStart, FieldDefinitionStart]);
-        VariableStart = CombineSymbols([FullVariableStart, VariableComponentStart]);
+        VariableStart = CombineSymbols([[FullVariableStart], VariableComponentStart]);
         VariableRecordsListStart = VariableRecordStart;
-        AssignOperatorStart = [CombineSymbols([VariableStart, FunctionNameStart]), [assign]];
+        AssignOperatorStart = [CombineSymbols([VariableStart[0], FunctionNameStart]), [assign]];
         SimpleOperatorStart =
             CombineSymbols([AssignOperatorStart[0], ProcedureOperatorStart, GotoOperatorStart])
             .Append((byte)0)
             .ToArray();
         UnlabeledOperatorStart = CombineSymbols([SimpleOperatorStart, ComplexOperatorStart]);
         OperatorStart = CombineSymbols([UnlabeledOperatorStart, LabelStart]);
-        FactorStart = CombineSymbols([VariableStart, ConstantWithoutSign, [(byte)'('], FunctionDefinitionStart, SetStart, [notsy]]);
+        FactorStart = CombineSymbols([VariableStart[0], ConstantWithoutSign, [(byte)'('], FunctionDefinitionStart, SetStart, [notsy]]);
         TermStart = FactorStart;
         SimpleExpressionStart = CombineSymbols([SignSymbols, TermStart]);
         ExpressionStart = SimpleExpressionStart;
         ElementStart = ExpressionStart;
         ElementsListStart = ElementStart.Append((byte)0).ToArray();
-        ActualParameterStart = CombineSymbols([ExpressionStart, VariableStart, ProcedureNameStart, FunctionNameStart]);
+        ActualParameterStart = CombineSymbols([ExpressionStart, VariableStart[0], ProcedureNameStart, FunctionNameStart]);
         BlockStart =
-            CombineSymbols([LabelsSectionStart, ConstantsSectionStart, VariablesSectionStart, ProcedureAndFunctionsSectionStart, OperatorsSectionStart])
+            CombineSymbols([LabelsSectionStart, ConstantsSectionStart, VariablesSectionStart,TypesSectionStart, ProcedureAndFunctionsSectionStart, OperatorsSectionStart])
             .Where(s => s != 0).ToArray();
+        UnpackedCompoundTypeStart=CombineSymbols([RegularTypeStart,SetTypeStart]);
+        CompoundTypeStart=CombineSymbols([UnpackedCompoundTypeStart,[packedsy]]);
+        FormalParametersSectionStart=CombineSymbols([[varsy,proceduresy,functionsy],ParametersGroupStart]);
     }
     #endregion
 }

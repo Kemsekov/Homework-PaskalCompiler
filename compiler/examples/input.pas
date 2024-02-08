@@ -1,8 +1,8 @@
 
 
-var a :Int,
-    b: Real,
-    c : String;
+var a :Int, a1 : Int;
+var b: Real;
+var c : String;
 
 begin
     b:=2.3

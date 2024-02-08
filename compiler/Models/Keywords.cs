@@ -99,7 +99,7 @@ public static class Keywords
         tmp["function"] = Lexical.functionsy;
         Kw[8] = tmp;
         tmp = new ConcurrentDictionary<string, byte>();
-        tmp["procedure"] = Lexical.procedurensy;
+        tmp["procedure"] = Lexical.proceduresy;
         Kw[9] = tmp;
         MaxKeywordLength=9;
         MinKeywordLength = 1;

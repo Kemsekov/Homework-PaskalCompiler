@@ -68,5 +68,5 @@ public static class Lexical
         repeatsy = 212,
         programsy = 211,
         functionsy = 210,
-        procedurensy = 209;
+        proceduresy = 209;
 }

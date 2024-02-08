@@ -1,6 +1,6 @@
 ﻿using static AppInstance;
 if(args.Length==0)
-    args=["examples/approx_sqrt.pas"];
+    args=["examples/sort.pas"];
 
 if(args.Length==0){
     System.Console.WriteLine("Specify file to compile");

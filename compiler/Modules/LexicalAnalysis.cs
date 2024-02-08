@@ -30,94 +30,108 @@ public class LexicalAnalysis
 {
     public LexicalAnalysis(InputOutput inputOutput, ConfigurationVariables configuration)
     {
-        Configuration = configuration;  
+        Configuration = configuration;
         InputOutput = inputOutput;
     }
     public TextPosition Pos => InputOutput.Pos;
     public byte Symbol;
-    public string SymbolValue="";
-    public byte? PeekSymbol(){
+    public string SymbolValue = "";
+    public byte? PeekSymbol()
+    {
         var pos = Pos;
         var oldSym = Symbol;
         var oldValue = SymbolValue;
-        if(InputOutput.EOF) return null;
+        if (InputOutput.EOF) return null;
         NextSym();
         var newSym = Symbol;
         var newSymbolValue = SymbolValue;
 
         InputOutput.SwitchPosition(pos);
         InputOutput.ClearErrorsAfter(pos);
-        
+
         Symbol = oldSym;
         SymbolValue = oldValue;
         return newSym;
     }
     public ConfigurationVariables Configuration { get; }
     public InputOutput InputOutput { get; }
-    bool SkipComments(){
+    bool SkipComments()
+    {
         //this horrible piece of code finds comments and handles errors
         //for their formatting. You'd better don't touch it
-        if(InputOutput.EOF) return false; 
-        if(InputOutput.CurrentLine == "") return false;
+        if (InputOutput.EOF) return false;
+        if (InputOutput.CurrentLine == "") return false;
 
-        if(InputOutput.Char=='}'){
-            InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment10, //missing closing '}'
-                    Position=InputOutput.Pos
+        if (InputOutput.Char == '}')
+        {
+            InputOutput.LineErrors().Add(new Error
+            {
+                ErrorCode = (long)ErrorCodes.MissingFullEnclosingComment10, //missing closing '}'
+                Position = InputOutput.Pos
             });
             InputOutput.NextChar();
             return true;
         }
 
-        if(InputOutput.Char=='*' && InputOutput.PeekChar==')'){
-            InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment9, //missing closing '}'
-                    Position=InputOutput.Pos
+        if (InputOutput.Char == '*' && InputOutput.PeekChar == ')')
+        {
+            InputOutput.LineErrors().Add(new Error
+            {
+                ErrorCode = (long)ErrorCodes.MissingFullEnclosingComment9, //missing closing '}'
+                Position = InputOutput.Pos
             });
             InputOutput.NextChar();
             return true;
         }
 
-        var isCommentLine =  InputOutput.Char=='/' && InputOutput.PeekChar=='/';
-        if(isCommentLine){
+        var isCommentLine = InputOutput.Char == '/' && InputOutput.PeekChar == '/';
+        if (isCommentLine)
+        {
             InputOutput.NextLine();
             return true;
         }
 
         var startPos = InputOutput.Pos;
         var line = InputOutput.CurrentLine;
-        
-        isCommentLine =  InputOutput.Char=='(' && InputOutput.PeekChar=='*';
-        if(isCommentLine){
-            bool condition()=> !(InputOutput.EOF || InputOutput.Char == '*' && InputOutput.PeekChar == ')');
-            while(condition()) InputOutput.NextChar();
-            
-            if(InputOutput.EOF){
+
+        isCommentLine = InputOutput.Char == '(' && InputOutput.PeekChar == '*';
+        if (isCommentLine)
+        {
+            bool condition() => !(InputOutput.EOF || InputOutput.Char == '*' && InputOutput.PeekChar == ')');
+            while (condition()) InputOutput.NextChar();
+
+            if (InputOutput.EOF)
+            {
                 InputOutput.SwitchPosition(startPos);
-                InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment9, //wrong comment formatting
-                    Position=InputOutput.Pos
+                InputOutput.LineErrors().Add(new Error
+                {
+                    ErrorCode = (long)ErrorCodes.MissingFullEnclosingComment9, //wrong comment formatting
+                    Position = InputOutput.Pos
                 });
                 InputOutput.NextLine();
             }
-            else{
+            else
+            {
                 InputOutput.NextChar();
                 InputOutput.NextChar();
             }
             return true;
         }
-        isCommentLine =  InputOutput.Char=='{';
-        if(isCommentLine){
+        isCommentLine = InputOutput.Char == '{';
+        if (isCommentLine)
+        {
             //search for enclosing '}'
             bool condition() => !InputOutput.EOF && InputOutput.Char != '}';
-            while(condition()) InputOutput.NextChar();
-            
+            while (condition()) InputOutput.NextChar();
+
             //if we didn't find enclosing '}' return error
-            if(InputOutput.EOF){
+            if (InputOutput.EOF)
+            {
                 InputOutput.SwitchPosition(startPos);
-                InputOutput.LineErrors().Add(new Error{
-                    ErrorCode=(long)ErrorCodes.MissingFullEnclosingComment10, //missing closing '}'
-                    Position=InputOutput.Pos
+                InputOutput.LineErrors().Add(new Error
+                {
+                    ErrorCode = (long)ErrorCodes.MissingFullEnclosingComment10, //missing closing '}'
+                    Position = InputOutput.Pos
                 });
                 InputOutput.NextLine();
             }
@@ -131,15 +145,16 @@ public class LexicalAnalysis
     {
         bool condition() => !InputOutput.EOF && (InputOutput.CurrentLine == "" || InputOutput.Char == ' ' || InputOutput.Char == '\t');
         while (condition()) InputOutput.NextChar();
-        if(InputOutput.EOF) return;
+        if (InputOutput.EOF) return;
 
-        if(SkipComments()){
+        if (SkipComments())
+        {
             NextSym();
             return;
         }
 
         var lineNumber = InputOutput.Pos.LineNumber;
-        
+
         //if our symbol is not string
         //accumulate current string characters into string until keywords search stops recognizing
         //input sequence as legal
@@ -148,7 +163,7 @@ public class LexicalAnalysis
         var charNumber = InputOutput.Pos.CharNumber;
         var substring = "";
         long errorCode = -1;
-        var nextChar = currentLine[Math.Min(charNumber+1,currentLine.Length-1)];
+        var nextChar = currentLine[Math.Min(charNumber + 1, currentLine.Length - 1)];
         var lineErrors = InputOutput.LineErrors(lineNumber);
         byte sym = Lexical.undefined;
 
@@ -168,24 +183,38 @@ public class LexicalAnalysis
                 );
                 substring = number;
 
+                var isRange = number.Contains("..") && number.Count(v => v == '.') == 2;
+                if (isRange)
+                {
+                    number =
+                        new string(
+                            currentLine
+                            .Skip(charNumber)
+                            .TakeWhile(c => Char.IsDigit(c))
+                            .ToArray()
+                        );
+                    substring = number;
+                }
+
                 var isFloating = number.Contains('.');
 
                 //search for float constant
                 if (isFloating)
                 {
                     sym = Keywords.SearchFloatConstant(number, out errorCode);
-                    if (errorCode < 0 )
+                    if (errorCode < 0)
                         break;
                 }
                 else
                 {
                     //if error search for int constant
                     sym = Keywords.SearchIntConstant(number, out errorCode);
-                    if (errorCode < 0 )
+                    if (errorCode < 0)
                     {
                         //also check for int constant to be smaller than MAXINT
                         long converted = long.Parse(number);
-                        if(converted>Configuration.MAXINT){
+                        if (converted > Configuration.MAXINT)
+                        {
                             lineErrors.Add(new Error()
                             {
                                 ErrorCode = 7,//int overflow
@@ -217,12 +246,12 @@ public class LexicalAnalysis
                 substring = name;
                 //check if it is keyword
                 sym = Keywords.SearchKeyword(name, out errorCode);
-                if (errorCode < 0 )
+                if (errorCode < 0)
                     break;
 
                 //check if variable name
                 sym = Keywords.SearchVariable(name, out errorCode);
-                if (errorCode < 0 )
+                if (errorCode < 0)
                     break;
                 //else add error
                 lineErrors.Add(new Error()
@@ -241,13 +270,15 @@ public class LexicalAnalysis
                 new string(
                     currentLine
                     .Skip(charNumber)
-                    .TakeWhile(c =>{
-                        if( c == '\''){
+                    .TakeWhile(c =>
+                    {
+                        if (c == '\'')
+                        {
                             count++;
-                            if(count==2)
-                            return true;
+                            if (count == 2)
+                                return true;
                         }
-                        return count<2;
+                        return count < 2;
                     })
                     .ToArray()
                 );
@@ -255,7 +286,7 @@ public class LexicalAnalysis
 
                 //check if it is string constant
                 sym = Keywords.SearchStringConstant(name, out errorCode);
-                if (errorCode < 0 )
+                if (errorCode < 0)
                     break;
                 //else add error
                 lineErrors.Add(new Error()
@@ -279,7 +310,7 @@ public class LexicalAnalysis
                     .ToArray()
                 );
                 sym = Keywords.SearchKeyword(substring, out errorCode);
-                if (errorCode < 0 )
+                if (errorCode < 0)
                     break;
             }
             //else add error
@@ -299,7 +330,7 @@ public class LexicalAnalysis
                 InputOutput.NextChar();
         }
         SymbolValue = substring;
-        Symbol=sym;
+        Symbol = sym;
 
         // now pray to God that everything works
         // System.Console.WriteLine(substring);
