@@ -41,9 +41,9 @@ public class SyntaxAnalysis
 
         var allowedEmptySymbol = false;
 
-        var allowed = m.Select(v=>v.startSymbols.Contains(Symbol)).ToArray();
+        var allowed = m.Select(v => v.startSymbols.Contains(Symbol)).ToArray();
 
-        for(int i = 0;i<m.Length;i++)
+        for (int i = 0; i < m.Length; i++)
         {
             var (name, met, start) = m[i];
             // if after met() AcceptHadError is true
@@ -82,14 +82,14 @@ public class SyntaxAnalysis
         var allowedEmptySymbol = false;
 
         var Peek = LexicalAnalysis.PeekSymbol();
-        var allowed = 
+        var allowed =
             m.Select(
-                v=>
-                v.startSymbols[0].Contains(Symbol) && 
-                (v.startSymbols.Length>1 ? v.startSymbols[1].Contains(Peek ?? 255) : true)
+                v =>
+                v.startSymbols[0].Contains(Symbol) &&
+                (v.startSymbols.Length > 1 ? v.startSymbols[1].Contains(Peek ?? 255) : true)
             ).ToArray();
 
-        for(int i = 0;i<m.Length;i++)
+        for (int i = 0; i < m.Length; i++)
         {
             var (name, met, start) = m[i];
             if (allowed[i])
@@ -138,7 +138,7 @@ public class SyntaxAnalysis
             if (startSymbols.Contains(Symbol) && !AcceptHadError)
             {
                 method();
-                if(AcceptHadError) break;
+                if (AcceptHadError) break;
                 //save new valid position
                 startSymbol = Symbol;
                 startSymbolValue = LexicalAnalysis.SymbolValue;
@@ -162,7 +162,7 @@ public class SyntaxAnalysis
         var op = anyOfThisSymbols.FirstOrDefault(s => s == Symbol, (byte)0);
         if (op == 0)
         {
-            if(InputOutput.HaveErrorsAfter(Pos)) return false;
+            if (InputOutput.HaveErrorsAfter(Pos)) return false;
 
             var symbols = string.Join(" ", anyOfThisSymbols.Select(s => Keywords.InverseKw[s]));
             InputOutput.LineErrors(Pos.LineNumber).Add(
@@ -196,9 +196,9 @@ public class SyntaxAnalysis
         }
         else
         {
-            if(InputOutput.HaveErrorsAfter(Pos)) return false;
+            if (InputOutput.HaveErrorsAfter(Pos)) return false;
             var kw = Keywords.InverseKw[expectedSymbol];
-            
+
             InputOutput.LineErrors(Pos.LineNumber).Add(
                 new Error
                 {
@@ -217,7 +217,7 @@ public class SyntaxAnalysis
     public void Block()
     {
 
-        Action[] sections = [LabelsSection,ConstantsSection,/*TypesSection,*/VariablesSection,ProcedureAndFunctionsSection,OperatorsSection];
+        Action[] sections = [LabelsSection, ConstantsSection,/*TypesSection,*/VariablesSection, ProcedureAndFunctionsSection, OperatorsSection];
         while (!InputOutput.EOF)
         {
             if (AcceptHadError)
@@ -228,9 +228,10 @@ public class SyntaxAnalysis
             }
 
             AcceptHadError = false;
-            foreach(var m in sections){
+            foreach (var m in sections)
+            {
                 m();
-                if(AcceptHadError) break;
+                if (AcceptHadError) break;
             }
         }
     }
@@ -665,15 +666,21 @@ public class SyntaxAnalysis
     void ProcedureOperator()
     {
         ProcedureName();
-        if(Symbol!='(') return;
-        Accept('(');
-        ActualParameter();
         Repeat(
-            () => { Accept(comma); ActualParameter(); },
-            [comma],
-            0
+            () =>
+            {
+                Accept('(');
+                ActualParameter();
+                Repeat(
+                    () => { Accept(comma); ActualParameter(); },
+                    [comma],
+                    0
+                );
+                Accept(')');
+            },
+            [(byte)'('],
+            0,1
         );
-        Accept(')');
 
     }
     static byte[] GotoOperatorStart;
@@ -722,9 +729,10 @@ public class SyntaxAnalysis
         Accept(beginsy);
         Operator();
         Repeat(
-            () => { 
-                Accept(semicolon); 
-                Repeat(Operator,OperatorStart,0,1);
+            () =>
+            {
+                Accept(semicolon);
+                Repeat(Operator, OperatorStart, 0, 1);
             },
             [semicolon],
             0
@@ -934,7 +942,7 @@ public class SyntaxAnalysis
         VariableComponentStart = CombineSymbols([IndexedVariableStart, FieldDefinitionStart]);
         VariableStart = CombineSymbols([FullVariableStart, VariableComponentStart]);
         VariableRecordsListStart = VariableRecordStart;
-        AssignOperatorStart = [CombineSymbols([VariableStart, FunctionNameStart]),[assign]];
+        AssignOperatorStart = [CombineSymbols([VariableStart, FunctionNameStart]), [assign]];
         SimpleOperatorStart =
             CombineSymbols([AssignOperatorStart[0], ProcedureOperatorStart, GotoOperatorStart])
             .Append((byte)0)
