@@ -36,7 +36,22 @@ public class LexicalAnalysis
     public TextPosition Pos => InputOutput.Pos;
     public byte Symbol;
     public string SymbolValue="";
+    public byte? PeekSymbol(){
+        var pos = Pos;
+        var oldSym = Symbol;
+        var oldValue = SymbolValue;
+        if(InputOutput.EOF) return null;
+        NextSym();
+        var newSym = Symbol;
+        var newSymbolValue = SymbolValue;
 
+        InputOutput.SwitchPosition(pos);
+        InputOutput.ClearErrorsAfter(pos);
+        
+        Symbol = oldSym;
+        SymbolValue = oldValue;
+        return newSym;
+    }
     public ConfigurationVariables Configuration { get; }
     public InputOutput InputOutput { get; }
     bool SkipComments(){
@@ -114,7 +129,6 @@ public class LexicalAnalysis
     }
     public void NextSym()
     {
-
         bool condition() => !InputOutput.EOF && (InputOutput.CurrentLine == "" || InputOutput.Char == ' ' || InputOutput.Char == '\t');
         while (condition()) InputOutput.NextChar();
         if(InputOutput.EOF) return;

@@ -51,20 +51,7 @@ public class SyntaxAnalysis
             // and we need to try another one
             if (allowed[i])
             {
-                LexicalAnalysis.Symbol = startSymbol;
-                LexicalAnalysis.SymbolValue = startSymbolValue;
-                InputOutput.SwitchPosition(startPos);
-                InputOutput.ClearErrorsAfter(startPos);
-                AcceptHadError = false;
                 met();
-                //restoring old positions removes errors
-                //but if we only have one handler it makes sense
-                //to remain it's errors
-                if(i!=m.Length-1)
-                if (AcceptHadError)
-                {
-                    continue;
-                }
                 return;
             }
             allowedEmptySymbol |= start.Contains((byte)0);
@@ -72,14 +59,57 @@ public class SyntaxAnalysis
         //if none of or statements have worked out, but or statement was allowed then we just return
         if (allowedEmptySymbol) return;
         var symbols = string.Join(", ", m.Select(s => s.name));
-        // InputOutput.LineErrors().Add(
-        //     new Error
-        //     {
-        //         ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-        //         Position = LexicalAnalysis.Pos,
-        //         SpecificErrorDescription = $"Expected one of '{symbols}'"
-        //     }
-        // );
+        InputOutput.LineErrors().Add(
+            new Error
+            {
+                ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
+                Position = LexicalAnalysis.Pos,
+                SpecificErrorDescription = $"Expected one of '{symbols}'"
+            }
+        );
+    }
+    /// <summary>
+    /// Do Or operation on a set of methods.
+    /// </summary>
+    /// <param name="m">Start symbols must not intersect. If startSymbols contains zero '0' then it will mean empty symbol is acceptable</param>
+    void Or((string name, Action method, byte[][] startSymbols)[] m)
+    {
+        if (AcceptHadError) return;
+        var startSymbol = Symbol;
+        var startSymbolValue = LexicalAnalysis.SymbolValue;
+        var startPos = LexicalAnalysis.Pos;
+
+        var allowedEmptySymbol = false;
+
+        var Peek = LexicalAnalysis.PeekSymbol();
+        var allowed = 
+            m.Select(
+                v=>
+                v.startSymbols[0].Contains(Symbol) && 
+                (v.startSymbols.Length>1 ? v.startSymbols[1].Contains(Peek ?? 255) : true)
+            ).ToArray();
+
+        for(int i = 0;i<m.Length;i++)
+        {
+            var (name, met, start) = m[i];
+            if (allowed[i])
+            {
+                met();
+                return;
+            }
+            allowedEmptySymbol |= start[0].Contains((byte)0);
+        }
+        //if none of or statements have worked out, but or statement was allowed then we just return
+        if (allowedEmptySymbol) return;
+        var symbols = string.Join(", ", m.Select(s => s.name));
+        InputOutput.LineErrors().Add(
+            new Error
+            {
+                ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
+                Position = LexicalAnalysis.Pos,
+                SpecificErrorDescription = $"Expected one of '{symbols}'"
+            }
+        );
     }
     /// <summary>
     /// Repeats method at least minRepeats and until maxRepeats
@@ -123,6 +153,7 @@ public class SyntaxAnalysis
             LexicalAnalysis.Symbol = startSymbol;
             LexicalAnalysis.SymbolValue = startSymbolValue;
             InputOutput.SwitchPosition(startPos);
+            InputOutput.ClearErrorsAfter(startPos);
             AcceptHadError=false;
         }
     }
@@ -140,14 +171,14 @@ public class SyntaxAnalysis
         var op = anyOfThisSymbols.FirstOrDefault(s => s == Symbol, (byte)0);
         if (op == 0)
         {
-            if(InputOutput.HaveErrorsAfter(LexicalAnalysis.Pos)) return false;
+            if(InputOutput.HaveErrorsAfter(Pos)) return false;
 
             var symbols = string.Join(" ", anyOfThisSymbols.Select(s => Keywords.InverseKw[s]));
-            InputOutput.LineErrors().Add(
+            InputOutput.LineErrors(Pos.LineNumber).Add(
                 new Error
                 {
                     ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                    Position = LexicalAnalysis.Pos,
+                    Position = Pos,
                     SpecificErrorDescription = $"Expected one of operation {symbols}"
                 }
             );
@@ -174,16 +205,14 @@ public class SyntaxAnalysis
         }
         else
         {
-            if(InputOutput.HaveErrorsAfter(LexicalAnalysis.Pos)) return false;
+            if(InputOutput.HaveErrorsAfter(Pos)) return false;
             var kw = Keywords.InverseKw[expectedSymbol];
-            if(kw=="end"){
-                var a = 1;
-            }
-            InputOutput.LineErrors().Add(
+            
+            InputOutput.LineErrors(Pos.LineNumber).Add(
                 new Error
                 {
                     ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                    Position = LexicalAnalysis.Pos,
+                    Position = Pos,
                     SpecificErrorDescription = $"Expected {kw}"
                 }
             );
@@ -196,6 +225,8 @@ public class SyntaxAnalysis
     static byte[] BlockStart;
     public void Block()
     {
+
+        Action[] sections = [LabelsSection,ConstantsSection,/*TypesSection,*/VariablesSection,ProcedureAndFunctionsSection,OperatorsSection];
         while (!InputOutput.EOF)
         {
             if (AcceptHadError)
@@ -206,12 +237,10 @@ public class SyntaxAnalysis
             }
 
             AcceptHadError = false;
-            LabelsSection();
-            ConstantsSection();
-            // TypesSection();// not in my task
-            VariablesSection();
-            ProcedureAndFunctionsSection();
-            OperatorsSection();
+            foreach(var m in sections){
+                m();
+                if(AcceptHadError) break;
+            }
         }
     }
     static byte[] ProcedureAndFunctionsSectionStart;
@@ -579,7 +608,7 @@ public class SyntaxAnalysis
     }
     #endregion
     #region Operators
-    static byte[] AssignOperatorStart;
+    static byte[][] AssignOperatorStart;
     void AssignOperator()
     {
         Or([
@@ -636,8 +665,8 @@ public class SyntaxAnalysis
     {
         var orPart = () => Or([
             (":=",AssignOperator,AssignOperatorStart),
-            ("procedure",ProcedureOperator,ProcedureOperatorStart),
-            ("goto",GotoOperator,GotoOperatorStart)
+            ("procedure",ProcedureOperator,[ProcedureOperatorStart]),
+            ("goto",GotoOperator,[GotoOperatorStart])
         ]);
         Repeat(orPart, SimpleOperatorStart, 0, 1);
     }
@@ -919,9 +948,9 @@ public class SyntaxAnalysis
         VariableComponentStart = CombineSymbols([IndexedVariableStart, FieldDefinitionStart]);
         VariableStart = CombineSymbols([FullVariableStart, VariableComponentStart]);
         VariableRecordsListStart = VariableRecordStart;
-        AssignOperatorStart = CombineSymbols([VariableStart, FunctionNameStart]);
+        AssignOperatorStart = [CombineSymbols([VariableStart, FunctionNameStart]),[assign]];
         SimpleOperatorStart =
-            CombineSymbols([AssignOperatorStart, ProcedureOperatorStart, GotoOperatorStart])
+            CombineSymbols([AssignOperatorStart[0], ProcedureOperatorStart, GotoOperatorStart])
             .Append((byte)0)
             .ToArray();
         UnlabeledOperatorStart = CombineSymbols([SimpleOperatorStart, ComplexOperatorStart]);
