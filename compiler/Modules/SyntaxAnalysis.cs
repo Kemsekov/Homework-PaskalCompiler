@@ -546,6 +546,7 @@ public class SyntaxAnalysis
         // VariableArray(); //TODO: idk how to fix this recursion
         Accept(ident);
         Accept((byte)'[');
+        Expression();
         Repeat(
             () => { Accept(comma); Expression(); },
             [comma],
@@ -766,11 +767,16 @@ public class SyntaxAnalysis
             () =>
             {
                 Accept('(');
-                ActualParameter();
-                Repeat(
-                    () => { Accept(comma); ActualParameter(); },
-                    [comma],
-                    0
+                Repeat(()=>{
+                        ActualParameter();
+                        Repeat(
+                            () => { Accept(comma); ActualParameter(); },
+                            [comma],
+                            0
+                        );
+                    },
+                    ActualParameterStart,
+                    0,1
                 );
                 Accept(')');
             },
