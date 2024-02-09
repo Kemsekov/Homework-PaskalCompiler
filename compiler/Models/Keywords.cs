@@ -138,7 +138,7 @@ public static class Keywords
         errorCode=-1;
         //the only variants left is ident, floatc and intc
         //if first char is word, assume it is ident
-        if(char.IsLetter(word[0])){
+        if(char.IsLetter(word[0]) || word[0]=='_'){
             if(word.All(c=>char.IsLetterOrDigit(c) || c=='_'))
                 return Lexical.ident;
         }

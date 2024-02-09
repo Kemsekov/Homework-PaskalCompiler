@@ -504,12 +504,12 @@ public class SyntaxAnalysis
     void Factor()
     {
         Or([
-            ("function definition",FunctionDefinition,FunctionDefinitionStart),
-            ("Constant without sign",()=>Accept(ConstantWithoutSign),ConstantWithoutSign),
-            ("variable",Variable,VariableStart[0]),
-            ("(",()=>{Accept('(');Expression();Accept(')');},[(byte)'(']),
-            ("set",Set,SetStart),
-            ("not",()=>{Accept(notsy);Factor();},[notsy]),
+            ("function call",FunctionCall,FunctionCallStart),
+            ("Constant without sign",()=>Accept(ConstantWithoutSign),[ConstantWithoutSign]),
+            ("variable",Variable,[VariableStart[0]]),
+            ("(",()=>{Accept('(');Expression();Accept(')');},[[(byte)'(']]),
+            ("set",Set,[SetStart]),
+            ("not",()=>{Accept(notsy);Factor();},[[notsy]]),
         ]);
     }
     static byte[][] VariableStart;
@@ -578,6 +578,31 @@ public class SyntaxAnalysis
     }
     static byte[] FunctionDefinitionStart;
     void FunctionDefinition()
+    {
+        Accept(functionsy);
+        FunctionName();
+        Repeat(
+            () =>
+            {
+                Accept('(');
+                FormalParametersSection();
+                Repeat(
+                    () => { Accept(semicolon); FormalParametersSection(); },
+                    [semicolon],
+                    0
+                );
+                Accept(')');
+            },
+            [(byte)'('],
+            0, 1
+        );
+        Accept(colon);
+        TypeName();
+        Accept(semicolon);
+        Block();
+    }
+    static byte[][] FunctionCallStart; //TODO: 
+    void FunctionCall()
     {
         FunctionName();
         Repeat(
@@ -703,6 +728,7 @@ public class SyntaxAnalysis
     static byte[][] AssignOperatorStart;
     void AssignOperator()
     {
+
         Or([
             ("variable",()=>{
                 Variable();
@@ -752,11 +778,26 @@ public class SyntaxAnalysis
     static byte[] SimpleOperatorStart;
     void SimpleOperator()
     {
-        var orPart = () => Or([
-            (":=",AssignOperator,AssignOperatorStart),
+        if(LexicalAnalysis.SymbolValue=="pivot"){
+            var a = 1;
+        }
+
+        (string,Action,byte[][])[] OrTerms = [
+            // (":=",AssignOperator,AssignOperatorStart),
             ("procedure",ProcedureOperator,[ProcedureOperatorStart]),
             ("goto",GotoOperator,[GotoOperatorStart])
-        ]);
+        ];
+
+        //this sucks. 
+        //AssignOperatorStart and ProcedureOperatorStart is just the same
+        //there is not way to distinguish them.
+        // //so I use this heuristic here
+        var isAssigment = InputOutput.CurrentLine.Contains(":=");
+
+        if(isAssigment){
+            OrTerms = OrTerms.Prepend((":=",AssignOperator,AssignOperatorStart)).ToArray();
+        }
+        var orPart = () => Or(OrTerms);
         Repeat(orPart, SimpleOperatorStart, 0, 1);
     }
     static byte[] ProcedureOperatorStart;
@@ -1025,6 +1066,7 @@ public class SyntaxAnalysis
         RegularTypeStart=[arraysy];
         ParametersGroupStart=[ident];
         ProcedureDefinitionStart=[proceduresy];
+        FunctionDefinitionStart = [functionsy];
 
         TypesSectionStart=[];
         CombinedTypeStart=[];
@@ -1039,7 +1081,6 @@ public class SyntaxAnalysis
         FullVariableStart = VariableNameStart;
         ComplexOperatorStart = CombineSymbols([CompoundOperatorStart, SelectOperatorStart, CycleOperatorStart, AppendOperatorStart]);
         ProcedureOperatorStart = ProcedureNameStart;
-        FunctionDefinitionStart = FunctionNameStart;
         TypeNameOrRangedTypeStart = ConstantStart;
         ProcedureOrFunctionDefinitionStart = CombineSymbols([FunctionDefinitionStart,ProcedureDefinitionStart]);
         ProcedureAndFunctionsSectionStart = ProcedureOrFunctionDefinitionStart.Append((byte)0).ToArray();
@@ -1051,7 +1092,7 @@ public class SyntaxAnalysis
         VariableComponentStart = CombineSymbols([IndexedVariableStart, FieldDefinitionStart]);
         VariableStart = CombineSymbols([[FullVariableStart], VariableComponentStart]);
         VariableRecordsListStart = VariableRecordStart;
-        AssignOperatorStart = [CombineSymbols([VariableStart[0], FunctionNameStart]), [assign]];
+        AssignOperatorStart = [CombineSymbols([VariableStart[0], FunctionNameStart])];
         SimpleOperatorStart =
             CombineSymbols([AssignOperatorStart[0], ProcedureOperatorStart, GotoOperatorStart])
             .Append((byte)0)
@@ -1071,6 +1112,7 @@ public class SyntaxAnalysis
         UnpackedCompoundTypeStart=CombineSymbols([RegularTypeStart,SetTypeStart]);
         CompoundTypeStart=CombineSymbols([UnpackedCompoundTypeStart,[packedsy]]);
         FormalParametersSectionStart=CombineSymbols([[varsy,proceduresy,functionsy],ParametersGroupStart]);
+        FunctionCallStart = [FunctionNameStart,[(byte)'(']];
     }
     #endregion
 }

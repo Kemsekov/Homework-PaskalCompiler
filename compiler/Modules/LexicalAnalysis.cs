@@ -233,7 +233,7 @@ public class LexicalAnalysis
                 break;
             }
 
-            if (char.IsLetter(InputOutput.Char))
+            if (char.IsLetter(InputOutput.Char) || InputOutput.Char=='_')
             {
                 // take until isLetter,digits and underscores
                 var name =
