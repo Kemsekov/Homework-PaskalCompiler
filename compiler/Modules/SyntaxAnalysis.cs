@@ -11,7 +11,36 @@
     останется на съедение диким зверям."
 
     Метод Accept - принимает ожидаемый символ и при несовпадении
-    добавляет ошибку. При 
+    добавляет ошибку.
+    Метод Accept который принимает массив - принимает множество ожидаемых символов - 
+    Принимает любой ожидаемый символ.
+
+    AcceptHadError - булеан который обозначает была ли ошибка в последнем вызове Accept.
+    Когда AcceptHadError=true вся обработка конструкций останавливается и эта переменная
+    должна быть поставлена в false вручную(что происходит в методе StartBlock).
+
+    Метод Or
+    Принимает на вход массив из кортежей
+    (строка с описанием конструкции,метод конструкции, начальные символы конструкции)
+    Этот метод на основе начальных символов выбирает какую конструкцию запустить.
+    Этот метод необходим чтоб было возможно реализовать конструкции с разветвлениями по типу
+    <тип> ::= <простой тип> | <составной тип> | <ссылочный тип>
+
+    Метод Or принимающий массив из массивов символов
+    Этот метод отличается от прошлого Or тем что принимает до двух ожидаемых символов.
+    Соответственно этот метод смотрит на текущий символ и символ впереди (PeekSymbol) и
+    выбирает какую конструкцию запустить.
+
+    Метод Repeat
+    Позволяет написать повторяющиеся конструкции.
+    Он так же принимает метод конструкции и набор валидных символов, с которых конструкция начинается.
+    Так же он принимает минимальное кол-во повторений данной конструкции и максимальное.
+    Этим методом можно реализовать "необязательные" конструкции по типу
+    <раздел типов> ::= <пусто> | type <определение типа> ;{ <определение типа>;}
+    Тут "{ <определение типа>;}" можно реализовать через Repeat с параметром мин кол-ва = 0
+    А весь раздел можно реализовать тоже через Repeat с мин кол-вом = 0 и макс кол-вом = 1
+    
+    
 */
 #pragma warning disable
 namespace Modules;
@@ -33,13 +62,22 @@ public class SyntaxAnalysis
     /// Sets to true when any Accept encounters error. When it is true no further analysis can be done.
     /// </summary>
     bool AcceptHadError = false;
+    /// <summary>
+    /// Symbol position
+    /// </summary>
     public TextPosition Pos => LexicalAnalysis.Pos;
+    /// <summary>
+    /// Previous symbol position
+    /// </summary>
     public TextPosition PrevPos => LexicalAnalysis.PrevPos;
+    /// <summary>
+    /// Current symbol
+    /// </summary>
+    byte Symbol => LexicalAnalysis.Symbol;
     public ConfigurationVariables Configuration { get; }
     public LexicalAnalysis LexicalAnalysis { get; }
     public ErrorDescriptions ErrorDescriptions { get; }
     public InputOutput InputOutput { get; }
-    byte Symbol => LexicalAnalysis.Symbol;
     #region BasicMethods
     /// <summary>
     /// Combines many starter symbols into one array
@@ -49,7 +87,7 @@ public class SyntaxAnalysis
         return startsSymbols.SelectMany(s => s).Distinct().ToArray();
     }
     /// <summary>
-    /// Combines many starter symbols into one array
+    /// Combines many starter symbols into one array of expected two starting symbols
     /// </summary>
     static byte[][] CombineSymbols(byte[][][] startsSymbols)
     {
@@ -97,7 +135,7 @@ public class SyntaxAnalysis
         );
     }
     /// <summary>
-    /// Do Or operation on a set of methods.
+    /// Do Or operation on a set of methods with two expected symbols in forward.
     /// </summary>
     /// <param name="m">Start symbols must not intersect. If startSymbols contains zero '0' then it will mean empty symbol is acceptable</param>
     void Or((string name, Action method, byte[][] startSymbols)[] m)
@@ -141,7 +179,7 @@ public class SyntaxAnalysis
         );
     }
     /// <summary>
-    /// Repeats method at least minRepeats and until maxRepeats
+    /// Repeats method at least minRepeats and until maxRepeats, until error reached or no start symbols is detected
     /// </summary>
     void Repeat(Action method, byte[] startSymbols, int minRepeats = 0, int maxRepeats = int.MaxValue)
     {
@@ -177,11 +215,16 @@ public class SyntaxAnalysis
                 break;
         }
     }
-
+    /// <summary>
+    /// Accepts any of given characters, adds error if Symbol is not in given input array
+    /// </summary>
     bool Accept(char[] anyOfThisSymbols)
     {
         return Accept(anyOfThisSymbols.Select(v => (byte)v).ToArray());
     }
+    /// <summary>
+    /// Accepts any of given symbols, adds error if Symbol is not in given input array
+    /// </summary>
     bool Accept(byte[] anyOfThisSymbols)
     {
         if (AcceptHadError) return false;
@@ -204,6 +247,9 @@ public class SyntaxAnalysis
         }
         return Accept(op);
     }
+    /// <summary>
+    /// Accepts char as symbol
+    /// </summary>
     bool Accept(char expectedSymbol)
     {
         return Accept((byte)expectedSymbol);
@@ -240,6 +286,11 @@ public class SyntaxAnalysis
     #endregion
     #region Block&Sections
     static byte[] BlockStart;
+    /// <summary>
+    /// Starting point of program syntax analysis.
+    /// Start block of syntax analysis. 
+    /// It handles errors. 
+    /// </summary>
     public void StartBlock()
     {
 
@@ -620,7 +671,7 @@ public class SyntaxAnalysis
         Accept(semicolon);
         Block();
     }
-    static byte[][] FunctionCallStart; //TODO: 
+    static byte[][] FunctionCallStart;
     void FunctionCall()
     {
         FunctionName();
