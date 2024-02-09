@@ -2,14 +2,15 @@ const
     n = 10;
 
 var
-    A: array[0..n] of integer;
+    A: array[0..n.1] of integer;
     i: integer;
 
 procedure print();
 var
     i: integer;
+    l : ;
 begin
-    for i := 0 to n do
+    for i := 0 {to} n do
         Write(A[i], ' ');
     Writeln();
 end;
@@ -63,4 +64,5 @@ begin
     print();
     qSort(0, n);
     print();
+    a:=3+;
 end.

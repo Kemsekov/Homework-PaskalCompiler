@@ -1,3 +1,18 @@
+
+/*
+    АВТОР : Бочкарев Владислав ПГНИУ ФИТ-2-2021
+
+    "Вы входите на опасную территорию, и для того
+    чтоб выжить вам нужно узнать набор правил и 
+    обзовестись необходимыми инструментами - иначе 
+    словно ребенок в лесу - вы заблудитесь и вас не станет,
+    как утряняя роса исчезает бесследно, так ваша надежда
+    покинет вас, ваши силы иссякнут и ваше бездыханное тело
+    останется на съедение диким зверям."
+
+    Метод Accept - принимает ожидаемый символ и при несовпадении
+    добавляет ошибку. При 
+*/
 #pragma warning disable
 namespace Modules;
 
@@ -19,6 +34,7 @@ public class SyntaxAnalysis
     /// </summary>
     bool AcceptHadError = false;
     public TextPosition Pos => LexicalAnalysis.Pos;
+    public TextPosition PrevPos => LexicalAnalysis.PrevPos;
     public ConfigurationVariables Configuration { get; }
     public LexicalAnalysis LexicalAnalysis { get; }
     public ErrorDescriptions ErrorDescriptions { get; }
@@ -69,12 +85,13 @@ public class SyntaxAnalysis
         }
         //if none of or statements have worked out, but or statement was allowed then we just return
         if (allowedEmptySymbol) return;
+        AcceptHadError=true;
         var symbols = string.Join(", ", m.Select(s => s.name));
-        InputOutput.LineErrors().Add(
+        InputOutput.LineErrors(PrevPos.LineNumber).Add(
             new Error
             {
                 ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                Position = LexicalAnalysis.Pos,
+                Position = PrevPos,
                 SpecificErrorDescription = $"Expected one of '{symbols}'"
             }
         );
@@ -112,12 +129,13 @@ public class SyntaxAnalysis
         }
         //if none of or statements have worked out, but or statement was allowed then we just return
         if (allowedEmptySymbol) return;
+        AcceptHadError=true;
         var symbols = string.Join(", ", m.Select(s => s.name));
-        InputOutput.LineErrors().Add(
+        InputOutput.LineErrors(PrevPos.LineNumber).Add(
             new Error
             {
                 ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                Position = LexicalAnalysis.Pos,
+                Position = PrevPos,
                 SpecificErrorDescription = $"Expected one of '{symbols}'"
             }
         );
@@ -173,11 +191,11 @@ public class SyntaxAnalysis
             if (InputOutput.HaveErrorsAfter(Pos)) return false;
 
             var symbols = string.Join(" ", anyOfThisSymbols.Select(s => Keywords.InverseKw[s]));
-            InputOutput.LineErrors(Pos.LineNumber).Add(
+            InputOutput.LineErrors(PrevPos.LineNumber).Add(
                 new Error
                 {
                     ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                    Position = Pos,
+                    Position = PrevPos,
                     SpecificErrorDescription = $"Expected one of operation {symbols}"
                 }
             );
@@ -207,11 +225,11 @@ public class SyntaxAnalysis
             if (InputOutput.HaveErrorsAfter(Pos)) return false;
             var kw = Keywords.InverseKw[expectedSymbol];
 
-            InputOutput.LineErrors(Pos.LineNumber).Add(
+            InputOutput.LineErrors(PrevPos.LineNumber).Add(
                 new Error
                 {
                     ErrorCode = (long)ErrorCodes.UnexpectedSymbol,
-                    Position = Pos,
+                    Position = PrevPos,
                     SpecificErrorDescription = $"Expected {kw}"
                 }
             );
@@ -562,7 +580,8 @@ public class SyntaxAnalysis
     static byte[][] FieldDefinitionStart;
     void FieldDefinition()
     {
-        VariableRecord();
+        // VariableRecord();  //TODO: idk how to fix this recursion
+        Accept(ident);
         Accept(point);
         FieldName();
     }
@@ -971,7 +990,7 @@ public class SyntaxAnalysis
         Or([
             ("while cycle",WhileCycle,WhileCycleStart),
             ("for cycle",ForCycle,ForCycleStart),
-            ("do while cycle",RepeatCycle,RepeatCycleStart),
+            ("repeated cycle",RepeatCycle,RepeatCycleStart),
         ]);
     }
     #endregion
