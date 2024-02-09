@@ -19,7 +19,7 @@ function partition(start: integer; _end: integer):integer;
 var
     pivot, i, j, temp: integer;
 begin
-    pivot := A[(start + _end) div 2];
+    pivot := A[(start + - _end) div 2];
     i := start;
     j := _end;
     

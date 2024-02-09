@@ -523,7 +523,7 @@ public class SyntaxAnalysis
     {
         Or([
             ("function call",FunctionCall,FunctionCallStart),
-            ("Constant without sign",()=>Accept(ConstantWithoutSign),[ConstantWithoutSign]),
+            ("const without sign",()=>Accept(ConstantWithoutSign),[ConstantWithoutSign]),
             ("variable",Variable,[VariableStart[0]]),
             ("(",()=>{Accept('(');Expression();Accept(')');},[[(byte)'(']]),
             ("set",Set,[SetStart]),
