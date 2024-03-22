@@ -61,7 +61,7 @@ public class SyntaxAnalysis
     /// <summary>
     /// Sets to true when any Accept encounters error. When it is true no further analysis can be done.
     /// </summary>
-    bool AcceptHadError = false;
+    public virtual bool AcceptHadError{get;private set;} = false;
     /// <summary>
     /// Symbol position
     /// </summary>
@@ -100,7 +100,7 @@ public class SyntaxAnalysis
     /// Do Or operation on a set of methods. 
     /// </summary>
     /// <param name="m">Start symbols must not intersect. If startSymbols contains zero '0' then it will mean empty symbol is acceptable</param>
-    void Or((string name, Action method, byte[] startSymbols)[] m)
+    public virtual void Or((string name, Action method, byte[] startSymbols)[] m)
     {
         if (AcceptHadError) return;
         var startSymbol = Symbol;
@@ -138,7 +138,7 @@ public class SyntaxAnalysis
     /// Do Or operation on a set of methods with two expected symbols in forward.
     /// </summary>
     /// <param name="m">Start symbols must not intersect. If startSymbols contains zero '0' then it will mean empty symbol is acceptable</param>
-    void Or((string name, Action method, byte[][] startSymbols)[] m)
+    public virtual void Or((string name, Action method, byte[][] startSymbols)[] m)
     {
         if (AcceptHadError) return;
         var startSymbol = Symbol;
@@ -181,7 +181,7 @@ public class SyntaxAnalysis
     /// <summary>
     /// Repeats method at least minRepeats and until maxRepeats, until error reached or no start symbols is detected
     /// </summary>
-    void Repeat(Action method, byte[] startSymbols, int minRepeats = 0, int maxRepeats = int.MaxValue)
+    public virtual void Repeat(Action method, byte[] startSymbols, int minRepeats = 0, int maxRepeats = int.MaxValue)
     {
         if (AcceptHadError) return;
         //call method() min times
@@ -322,11 +322,11 @@ public class SyntaxAnalysis
         OperatorsSection();
     }
     static byte[] TypesSectionStart = [];
-    void TypesSection(){
+    public virtual void TypesSection(){
         //TODO: 
     }
     static byte[] ProcedureAndFunctionsSectionStart;
-    void ProcedureAndFunctionsSection()
+    public virtual void ProcedureAndFunctionsSection()
     {
         Repeat(
             () => { ProcedureOrFunctionDefinition(); Accept(semicolon); },
@@ -335,12 +335,12 @@ public class SyntaxAnalysis
         );
     }
     static byte[] OperatorsSectionStart;
-    void OperatorsSection()
+    public virtual void OperatorsSection()
     {
         CompoundOperator();
     }
     static byte[] ProcedureOrFunctionDefinitionStart;
-    void ProcedureOrFunctionDefinition()
+    public virtual void ProcedureOrFunctionDefinition()
     {
         Or([
             ("procedure definition",ProcedureDefinition,ProcedureDefinitionStart), // not in my task
@@ -349,7 +349,7 @@ public class SyntaxAnalysis
     }
 
     static byte[] LabelsSectionStart;
-    void LabelsSection()
+    public virtual void LabelsSection()
     {
         Repeat(
             () =>
@@ -372,7 +372,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] ConstantsSectionStart;
-    void ConstantsSection()
+    public virtual void ConstantsSection()
     {
         Repeat(
             () =>
@@ -395,7 +395,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] VariablesSectionStart;
-    void VariablesSection()
+    public virtual void VariablesSection()
     {
         Repeat(
             () =>
@@ -415,7 +415,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] SameTypeVariablesDescriptionStart;
-    void SameTypeVariablesDescription()
+    public virtual void SameTypeVariablesDescription()
     {
         Accept(ident);
         Repeat(
@@ -427,7 +427,7 @@ public class SyntaxAnalysis
         Type_();
     }
     static byte[] TypeStart;
-    void Type_()
+    public virtual void Type_()
     {
         Or([
             ("simple type",SimpleType,SimpleTypeStart), //I will limit my types to simple ones
@@ -437,21 +437,21 @@ public class SyntaxAnalysis
     }
     static byte[] ConstDefinitionStart;
     //ошибка в bnf файле '<определение константы> ::= <имя> = <константа>'
-    void ConstDefinition()
+    public virtual void ConstDefinition()
     {
         Accept(ident);
         Accept(equal);
         Constant();
     }
     static byte[] CompoundTypeStart;
-    void CompoundType(){
+    public virtual void CompoundType(){
         Or([
             ("unpacked compound type",UnpackedCompoundType,UnpackedCompoundTypeStart),
             ("packed compound type",()=>{Accept(packedsy);UnpackedCompoundType();},[packedsy]),
         ]);
     }
     static byte[] UnpackedCompoundTypeStart;
-    void UnpackedCompoundType(){
+    public virtual void UnpackedCompoundType(){
         Or([
             ("regular type",RegularType,RegularTypeStart),
             // ("combined type",CombinedType,CombinedTypeStart),
@@ -460,7 +460,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] RegularTypeStart;
-    void RegularType(){
+    public virtual void RegularType(){
         Accept(arraysy);
         Accept('[');
         SimpleType();
@@ -470,15 +470,15 @@ public class SyntaxAnalysis
         Type_();
     }
     static byte[] CombinedTypeStart = [];
-    void CombinedType(){
+    public virtual void CombinedType(){
         //TODO: 
     }
     static byte[] SetTypeStart = [];
-    void SetType(){
+    public virtual void SetType(){
         //TODO: 
     }
     static byte[] SimpleTypeStart;
-    void SimpleType()
+    public virtual void SimpleType()
     {
         Or([
             ("enum type",EnumType,EnumTypeStart),
@@ -486,7 +486,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] EnumTypeStart;
-    void EnumType()
+    public virtual void EnumType()
     {
         Accept('(');
         Accept(ident);
@@ -498,7 +498,7 @@ public class SyntaxAnalysis
         Accept(')');
     }
     static byte[] TypeNameOrRangedTypeStart;
-    void TypeNameOrRangedType()
+    public virtual void TypeNameOrRangedType()
     {
         Constant();
         Repeat(
@@ -508,7 +508,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] TypeNameStart;
-    void TypeName()
+    public virtual void TypeName()
     {
         Accept(ident);
     }
@@ -516,7 +516,7 @@ public class SyntaxAnalysis
     #region Expression
     static byte[] RelationOperation;
     static byte[] ExpressionStart;
-    void Expression()
+    public virtual void Expression()
     {
         SimpleExpression();
         Repeat(
@@ -532,7 +532,7 @@ public class SyntaxAnalysis
     static byte[] SignSymbols;
     static byte[] AdditiveOperation;
     static byte[] SimpleExpressionStart;
-    void SimpleExpression()
+    public virtual void SimpleExpression()
     {
         Repeat(
             () =>
@@ -555,7 +555,7 @@ public class SyntaxAnalysis
     }
     static byte[] MultiplicativeOperation;
     static byte[] TermStart;
-    void Term()
+    public virtual void Term()
     {
         Factor();
         Repeat(
@@ -570,7 +570,7 @@ public class SyntaxAnalysis
     }
     static byte[] ConstantWithoutSign;
     static byte[] FactorStart;
-    void Factor()
+    public virtual void Factor()
     {
         Or([
             ("function call",FunctionCall,FunctionCallStart),
@@ -582,7 +582,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[][] VariableStart;
-    void Variable()
+    public virtual void Variable()
     {
         Or([
             ("variable component",VariableComponent,VariableComponentStart),
@@ -591,17 +591,17 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] FullVariableStart;
-    void FullVariable()
+    public virtual void FullVariable()
     {
         VariableName();
     }
     static byte[] VariableNameStart;
-    void VariableName()
+    public virtual void VariableName()
     {
         Accept(VariableNameStart);
     }
     static byte[][] VariableComponentStart;
-    void VariableComponent()
+    public virtual void VariableComponent()
     {
         Or([
             ("indexed variable",IndexedVariable,IndexedVariableStart),
@@ -610,7 +610,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[][] IndexedVariableStart;
-    void IndexedVariable()
+    public virtual void IndexedVariable()
     {
         // VariableArray(); //TODO: idk how to fix this recursion
         Accept(ident);
@@ -624,12 +624,12 @@ public class SyntaxAnalysis
         Accept((byte)']');
     }
     static byte[] VariableArrayStart;
-    void VariableArray()
+    public virtual void VariableArray()
     {
         Variable();
     }
     static byte[][] FieldDefinitionStart;
-    void FieldDefinition()
+    public virtual void FieldDefinition()
     {
         // VariableRecord();  //TODO: idk how to fix this recursion
         Accept(ident);
@@ -637,17 +637,17 @@ public class SyntaxAnalysis
         FieldName();
     }
     static byte[] VariableRecordStart;
-    void VariableRecord()
+    public virtual void VariableRecord()
     {
         Variable();
     }
     static byte[] FieldNameStart;
-    void FieldName()
+    public virtual void FieldName()
     {
         Accept(ident);
     }
     static byte[] FunctionDefinitionStart;
-    void FunctionDefinition()
+    public virtual void FunctionDefinition()
     {
         Accept(functionsy);
         FunctionName();
@@ -672,7 +672,7 @@ public class SyntaxAnalysis
         Block();
     }
     static byte[][] FunctionCallStart;
-    void FunctionCall()
+    public virtual void FunctionCall()
     {
         FunctionName();
         Repeat(
@@ -692,7 +692,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] ProcedureDefinitionStart;
-    void ProcedureDefinition(){
+    public virtual void ProcedureDefinition(){
         Accept(proceduresy);
         Accept(ident);
         Repeat(
@@ -715,7 +715,7 @@ public class SyntaxAnalysis
         Block();
     }
     static byte[] FormalParametersSectionStart;
-    void FormalParametersSection(){
+    public virtual void FormalParametersSection(){
         Or([
             ("var",()=>{Accept(varsy);ParametersGroup();},[varsy]),
             ("function",()=>{Accept(functionsy);ParametersGroup();},[functionsy]),
@@ -724,7 +724,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] ParametersGroupStart;
-    void ParametersGroup(){
+    public virtual void ParametersGroup(){
         Accept(ident);
         Repeat(
             ()=>{Accept(comma);Accept(ident);},
@@ -735,12 +735,12 @@ public class SyntaxAnalysis
         Accept(ident);
     }
     static byte[] FunctionNameStart;
-    void FunctionName()
+    public virtual void FunctionName()
     {
         Accept(ident);
     }
     static byte[] ActualParameterStart;
-    void ActualParameter()
+    public virtual void ActualParameter()
     {
         Or([
             ("variable",Variable,VariableStart),
@@ -750,12 +750,12 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] ProcedureNameStart;
-    void ProcedureName()
+    public virtual void ProcedureName()
     {
         Accept(ident);
     }
     static byte[] SetStart;
-    void Set()
+    public virtual void Set()
     {
         Accept('[');
         ElementsList();
@@ -763,7 +763,7 @@ public class SyntaxAnalysis
     }
     //add zero to list so empty symbol is also accepted
     static byte[] ElementsListStart;
-    void ElementsList()
+    public virtual void ElementsList()
     {
         Repeat(
             () =>
@@ -780,7 +780,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] ElementStart;
-    void Element()
+    public virtual void Element()
     {
         Expression();
         Repeat(
@@ -796,7 +796,7 @@ public class SyntaxAnalysis
     #endregion
     #region Operators
     static byte[][] AssignOperatorStart;
-    void AssignOperator()
+    public virtual void AssignOperator()
     {
 
         Or([
@@ -813,7 +813,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] IfOperatorStart;
-    void IfOperator()
+    public virtual void IfOperator()
     {
         Accept(ifsy);
         Expression();
@@ -830,7 +830,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] OperatorStart;
-    void Operator()
+    public virtual void Operator()
     {
         Or([
             ("unlabeled operator",UnlabeledOperator,UnlabeledOperatorStart),
@@ -838,7 +838,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] UnlabeledOperatorStart;
-    void UnlabeledOperator()
+    public virtual void UnlabeledOperator()
     {
         Or([
             ("simple operator",SimpleOperator,SimpleOperatorStart),
@@ -846,7 +846,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] SimpleOperatorStart;
-    void SimpleOperator()
+    public virtual void SimpleOperator()
     {
         if(LexicalAnalysis.SymbolValue=="pivot"){
             var a = 1;
@@ -871,7 +871,7 @@ public class SyntaxAnalysis
         Repeat(orPart, SimpleOperatorStart, 0, 1);
     }
     static byte[] ProcedureOperatorStart;
-    void ProcedureOperator()
+    public virtual void ProcedureOperator()
     {
         ProcedureName();
         Repeat(
@@ -897,18 +897,18 @@ public class SyntaxAnalysis
 
     }
     static byte[] GotoOperatorStart;
-    void GotoOperator()
+    public virtual void GotoOperator()
     {
         Accept(gotosy);
         Label();
     }
     static byte[] LabelStart;
-    void Label()
+    public virtual void Label()
     {
         Accept(intc);
     }
     static byte[] ComplexOperatorStart;
-    void ComplexOperator()
+    public virtual void ComplexOperator()
     {
         Or([
             ("compound",CompoundOperator,CompoundOperatorStart),
@@ -918,7 +918,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] AppendOperatorStart;
-    void AppendOperator()
+    public virtual void AppendOperator()
     {
         Accept(withsy);
         VariableRecordsList();
@@ -927,7 +927,7 @@ public class SyntaxAnalysis
     }
 
     static byte[] VariableRecordsListStart;
-    void VariableRecordsList()
+    public virtual void VariableRecordsList()
     {
         VariableRecord();
         Repeat(
@@ -937,7 +937,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] CompoundOperatorStart;
-    void CompoundOperator()
+    public virtual void CompoundOperator()
     {
         Accept(beginsy);
         Operator();
@@ -953,7 +953,7 @@ public class SyntaxAnalysis
         Accept(endsy);
     }
     static byte[] SelectOperatorStart;
-    void SelectOperator()
+    public virtual void SelectOperator()
     {
         Or([
             ("if",IfOperator,IfOperatorStart),
@@ -961,7 +961,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] VariantOperatorStart;
-    void VariantOperator()
+    public virtual void VariantOperator()
     {
         Accept(casesy);
         Expression();
@@ -979,7 +979,7 @@ public class SyntaxAnalysis
         Accept(endsy);
     }
     static byte[] VariantListItemStart;
-    void VariantListItem()
+    public virtual void VariantListItem()
     {
         Repeat(
             () =>
@@ -993,7 +993,7 @@ public class SyntaxAnalysis
         );
     }
     static byte[] VariantLabelsListStart;
-    void VariantLabelsList()
+    public virtual void VariantLabelsList()
     {
         VariantLabel();
         Repeat(
@@ -1007,12 +1007,12 @@ public class SyntaxAnalysis
         );
     }
     static byte[] VariantLabelStart;
-    void VariantLabel()
+    public virtual void VariantLabel()
     {
         Constant();
     }
     static byte[] ConstantStart;
-    void Constant()
+    public virtual void Constant()
     {
         Or([
             ("unsigned int constant",()=>Accept(intc),[intc]),
@@ -1023,7 +1023,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] SignStart;
-    void Sign()
+    public virtual void Sign()
     {
         Or([
             ("+",()=>Accept(plus),[plus]),
@@ -1031,12 +1031,12 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] ConstantNameStart;
-    void ConstantName()
+    public virtual void ConstantName()
     {
         Accept(ident);
     }
     static byte[] CycleOperatorStart;
-    void CycleOperator()
+    public virtual void CycleOperator()
     {
         Or([
             ("while cycle",WhileCycle,WhileCycleStart),
@@ -1047,7 +1047,7 @@ public class SyntaxAnalysis
     #endregion
     #region Cycles
     static byte[] WhileCycleStart;
-    void WhileCycle()
+    public virtual void WhileCycle()
     {
         Accept(whilesy);
         Expression();
@@ -1055,7 +1055,7 @@ public class SyntaxAnalysis
         Operator();
     }
     static byte[] ForCycleStart;
-    void ForCycle()
+    public virtual void ForCycle()
     {
         Accept(forsy);
         CycleParameter();
@@ -1068,12 +1068,12 @@ public class SyntaxAnalysis
     }
     static byte[] CycleParameterStart;
     //in bnf file '<параметр цикла >:= <имя>' is wrong
-    void CycleParameter()
+    public virtual void CycleParameter()
     {
         Accept(ident);
     }
     static byte[] DirectionStart;
-    void Direction()
+    public virtual void Direction()
     {
         Or([
             ("to",()=>Accept(tosy),[tosy]),
@@ -1081,7 +1081,7 @@ public class SyntaxAnalysis
         ]);
     }
     static byte[] RepeatCycleStart;
-    void RepeatCycle()
+    public virtual void RepeatCycle()
     {
         Accept(repeatsy);
         Operator();
