@@ -1,47 +1,12 @@
-
-
-var a :Int, a1 : Int;
-var b: Real;
-var c : String;
+var s :integer
+    r : int
+    a : array [1..55] real;
 
 begin
-    b:=2.3
-    fine_int_c := 234
-    overflow_int_c:=-102039
-
-    fine_float_c:= 0.02
-    wrong_float_c:= 0.02.23
-
-    c:='Good stringc'
-    c:='unclosed string c
-    c:= another unclosed string c'
-
-    //add forbidden symbols
-    @#$
-
-    a.CallFunction();
-    }
-    *)
-    {
-        multiline
-        comment
-    }
-
-    (* Short comment! *)
-
-
-
-
-    for I:=1 to 10 do a:=a*0.5;
-
-    //check that comments are skippable in the middle of code
-    if {skip this part} (* also this part *) a then 
-        b:=a+b
-    endif
-
-end
-{
-    Multiline unclosed comment
-    a:=3
-(* unclosed short comment!
-
+    a:=2;
+    for i := 0 {to} n do
+        Write(A[i], ' ');
+    Writeln();
+    c:=3;
+    A=
+end;

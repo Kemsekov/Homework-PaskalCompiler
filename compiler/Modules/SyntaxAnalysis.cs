@@ -61,7 +61,7 @@ public class SyntaxAnalysis
     /// <summary>
     /// Sets to true when any Accept encounters error. When it is true no further analysis can be done.
     /// </summary>
-    public virtual bool AcceptHadError{get;private set;} = false;
+    public virtual bool AcceptHadError{get;set;} = false;
     /// <summary>
     /// Symbol position
     /// </summary>
@@ -73,7 +73,8 @@ public class SyntaxAnalysis
     /// <summary>
     /// Current symbol
     /// </summary>
-    byte Symbol => LexicalAnalysis.Symbol;
+    public byte Symbol => LexicalAnalysis.Symbol;
+    public string SymbolValue => LexicalAnalysis.SymbolValue;
     public ConfigurationVariables Configuration { get; }
     public LexicalAnalysis LexicalAnalysis { get; }
     public ErrorDescriptions ErrorDescriptions { get; }
@@ -258,7 +259,7 @@ public class SyntaxAnalysis
     /// Accepts current symbol if it is equal to <paramref name="expectedSymbol"/> and moves to next symbol
     /// </summary>
     /// <returns>True if symbol is accepted.</returns>
-    bool Accept(byte expectedSymbol)
+    protected virtual bool Accept(byte expectedSymbol)
     {
         if (AcceptHadError) return false;
         if (Symbol == expectedSymbol)

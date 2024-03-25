@@ -58,6 +58,8 @@ begin
 end;
 
 begin
+    b:=+1-;
+
     for i := 0 to n do
         A[i] := random(10);
     

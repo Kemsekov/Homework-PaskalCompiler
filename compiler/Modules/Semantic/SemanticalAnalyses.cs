@@ -1,4 +1,6 @@
 namespace Modules;
+
+
 // описание переменных
 // описание массивов
 // присваивание
@@ -9,11 +11,21 @@ namespace Modules;
 //декоратор-объект для SyntaxAnalysis
 public class SemanticalAnalyses : SyntaxAnalysis
 {
-    private SyntaxAnalysis _source;
+    SyntaxAnalysis _source;
+    IDictionary<string,IdentifierInfo> Identifiers;
 
     public SemanticalAnalyses(SyntaxAnalysis source) : base(source.LexicalAnalysis,source.InputOutput,source.ErrorDescriptions,source.Configuration)
     {
         _source=source;
+        Identifiers = new Dictionary<string, IdentifierInfo>();
     }
-    public override bool AcceptHadError { get => _source.AcceptHadError; }
+    public override bool AcceptHadError { 
+        get => _source.AcceptHadError; 
+        set => _source.AcceptHadError=value; 
+    }
+    protected override bool Accept(byte expectedSymbol)
+    {
+        return base.Accept(expectedSymbol);
+    }
+    
 }

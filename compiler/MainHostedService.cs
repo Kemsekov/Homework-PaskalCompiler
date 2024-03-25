@@ -17,14 +17,6 @@ public class MainHostedService : BackgroundService
 
     public void PrintProgramErrors()
     {
-        //just read all file and accumulate errors
-        // while (!InputOutput.EOF)
-        // {
-        //     // InputOutput.NextChar();
-        //     LexicalAnalysis.NextSym();
-        //     System.Console.WriteLine($"{LexicalAnalysis.SymbolValue} \t {LexicalAnalysis.Symbol} \t {Keywords.InverseKw[LexicalAnalysis.Symbol]}");
-        // }
-        
         //just run block of syntax analysis
         Semantic.StartBlock();
         System.Console.WriteLine("-------PROGRAM-------");
