@@ -292,9 +292,8 @@ public class SyntaxAnalysis
     /// Start block of syntax analysis. 
     /// It handles errors. 
     /// </summary>
-    public void StartBlock()
+    public virtual void StartBlock()
     {
-
         Action[] sections = [LabelsSection, ConstantsSection,TypesSection,VariablesSection, ProcedureAndFunctionsSection, OperatorsSection];
         while (!InputOutput.EOF)
         {
@@ -483,10 +482,11 @@ public class SyntaxAnalysis
     {
         Or([
             ("enum type",EnumType,EnumTypeStart),
-            ("type name or ranged type",TypeNameOrRangedType,TypeNameOrRangedTypeStart)
+            ("ranged type",RangedType,RangedTypeStart),
+            ("type name",TypeName,TypeNameStart),
         ]);
     }
-    static byte[] EnumTypeStart;
+    static byte[][] EnumTypeStart;
     public virtual void EnumType()
     {
         Accept('(');
@@ -498,17 +498,14 @@ public class SyntaxAnalysis
         );
         Accept(')');
     }
-    static byte[] TypeNameOrRangedTypeStart;
-    public virtual void TypeNameOrRangedType()
+    static byte[][] RangedTypeStart;
+    public virtual void RangedType()
     {
         Constant();
-        Repeat(
-            () => { Accept(twopoints); Constant(); },
-            [twopoints],
-            0, 1
-        );
+        Accept(twopoints); 
+        Constant();
     }
-    static byte[] TypeNameStart;
+    static byte[][] TypeNameStart;
     public virtual void TypeName()
     {
         Accept(ident);
@@ -724,6 +721,7 @@ public class SyntaxAnalysis
             ("ident",ParametersGroup,ParametersGroupStart),
         ]);
     }
+        
     static byte[] ParametersGroupStart;
     public virtual void ParametersGroup(){
         Accept(ident);
@@ -1125,8 +1123,8 @@ public class SyntaxAnalysis
         AdditiveOperation = [plus, minus, orsy];
         SignSymbols = [plus, minus];
         RelationOperation = [equal, latergreater, later, greater, laterequal, greaterequal, insy];
-        TypeNameStart = [ident];
-        EnumTypeStart = [(byte)'('];
+        TypeNameStart = [[ident]];
+        EnumTypeStart = [[(byte)'(']];
         ConstDefinitionStart = [ident];
         SameTypeVariablesDescriptionStart = [ident];
         VariablesSectionStart = [0, varsy];
@@ -1152,11 +1150,12 @@ public class SyntaxAnalysis
         FullVariableStart = VariableNameStart;
         ComplexOperatorStart = CombineSymbols([CompoundOperatorStart, SelectOperatorStart, CycleOperatorStart, AppendOperatorStart]);
         ProcedureOperatorStart = ProcedureNameStart;
-        TypeNameOrRangedTypeStart = ConstantStart;
+        RangedTypeStart = [ConstantStart,[twopoints]];
         ProcedureOrFunctionDefinitionStart = CombineSymbols([FunctionDefinitionStart,ProcedureDefinitionStart]);
         ProcedureAndFunctionsSectionStart = ProcedureOrFunctionDefinitionStart.Append((byte)0).ToArray();
         OperatorsSectionStart = CompoundOperatorStart;
-        SimpleTypeStart = CombineSymbols([EnumTypeStart, TypeNameOrRangedTypeStart, TypeNameStart]);
+        SimpleTypeStart = CombineSymbols([EnumTypeStart, RangedTypeStart, TypeNameStart])[0];
+        
         TypeStart = CombineSymbols([SimpleTypeStart,/*CompoundTypeStart,ReferenceTypeStart*/]);
         FieldDefinitionStart = [VariableRecordStart,[point]];
         IndexedVariableStart = [VariableArrayStart,[(byte)'[']];

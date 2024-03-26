@@ -1,3 +1,4 @@
+using static Lexical;
 namespace Modules;
 
 
@@ -25,7 +26,11 @@ public class SemanticalAnalyses : SyntaxAnalysis
     /// только для текущего контекса
     /// </summary>
     IList<IDictionary<string,IdentifierInfo>> Identifiers;
-
+    /// <summary>
+    /// Вызывается после успешного вызова Accept.
+    /// Принимает на вход принятый символ и его значение.
+    /// </summary>
+    Action<byte,string> AfterAccept;
     public SemanticalAnalyses(SyntaxAnalysis source) : base(source.LexicalAnalysis,source.InputOutput,source.ErrorDescriptions,source.Configuration)
     {
         _source=source;
@@ -49,7 +54,58 @@ public class SemanticalAnalyses : SyntaxAnalysis
     }
     protected override bool Accept(byte expectedSymbol)
     {
-        return base.Accept(expectedSymbol);
+        var currentSymbol = Symbol;
+        var currentSymbolValue = SymbolValue;
+        if(base.Accept(expectedSymbol)){
+            AfterAccept(currentSymbol,currentSymbolValue);
+            return true;
+        }
+        return false;
     }
-    
+    #region НоваяОбласть
+    void NewZone(Action insideWork){
+        var newInfoMap = new Dictionary<string, IdentifierInfo>();
+        Identifiers.Add(newInfoMap);
+        insideWork();
+        Identifiers.RemoveAt(Identifiers.Count-1);
+    }
+    public override void FunctionDefinition()
+    {
+        NewZone(base.FunctionDefinition);
+    }
+    public override void ProcedureDefinition()
+    {
+        NewZone(base.ProcedureDefinition);
+    }
+    public override void StartBlock()
+    {
+        NewZone(base.StartBlock);
+    }
+    #endregion
+    #region ПоискВхождений
+    public override void SameTypeVariablesDescription()
+    {
+        var localVariables = new List<string>();
+        string type = "";
+        AfterAccept=(sym,value)=>{
+            if(sym==ident)
+                localVariables.Add(value);
+        };
+
+        Accept(ident);
+        Repeat(
+            () => { Accept(comma); Accept(ident); },
+            [comma],
+            0
+        );
+        Accept(colon);
+        AfterAccept=(sym,value)=>{
+
+        };
+        Type_();
+        // ident
+        // array[const..const] of ident
+        // (ident,ident ... ident)
+    }
+    #endregion
 }

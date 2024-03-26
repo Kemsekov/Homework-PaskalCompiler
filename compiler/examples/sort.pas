@@ -2,13 +2,13 @@ const
     n = 10;
 
 var
-    A: array[0..n.1] of integer;
+    A: array[0..n] of integer;
     i: integer;
 
 procedure print();
 var
-    i: integer;
-    l : ;
+    i : integer;
+    l : real;
 begin
     for i := 0 {to} n do
         Write(A[i], ' ');
