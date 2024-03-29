@@ -195,7 +195,7 @@ public class LexicalAnalysis
                         new string(
                             currentLine
                             .Skip(charNumber)
-                            .TakeWhile(c => Char.IsDigit(c))
+                            .TakeWhile(char.IsDigit)
                             .ToArray()
                         );
                     substring = number;

@@ -13,6 +13,9 @@ public enum ErrorCodes{
     /// { to }
     /// </summary>
     MissingFullEnclosingComment10=10,
-    UnexpectedSymbol = 11
+    UnexpectedSymbol = 11,
+    VariableAlreadyDefined = 12,
+    TypeNotSupported=13,
+    InvalidArrayDimension=14
     
 }

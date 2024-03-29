@@ -1,4 +1,4 @@
-namespace Modules;
+namespace Modules.Semantic;
 
 public static class IdentifierInfoExtensions
 {

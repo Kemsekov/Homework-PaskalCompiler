@@ -10,5 +10,8 @@
     "8": "forbidden symbol",
     "9": "missing full enclosing '(*' to '*)' for comment",
     "10": "missing full enclosing '{' to '}' for comment",
-    "11": "unexpected symbol. "
+    "11": "unexpected symbol. ",
+    "12": "variable already defined",
+    "13": "type not supported",
+    "14": "invalid array dimension"
 }

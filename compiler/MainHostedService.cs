@@ -2,7 +2,7 @@ using Modules;
 
 public class MainHostedService : BackgroundService
 {
-    public MainHostedService(InputOutput inputOutput,LexicalAnalysis lexicalAnalysis,SyntaxAnalysis syntaxAnalysis, SyntaxAnalysis semantic)
+    public MainHostedService(InputOutput inputOutput,LexicalAnalysis lexicalAnalysis,SyntaxAnalysis syntaxAnalysis, SemanticalAnalyses semantic)
     {
         InputOutput=inputOutput;
         LexicalAnalysis = lexicalAnalysis;
@@ -13,7 +13,7 @@ public class MainHostedService : BackgroundService
     public InputOutput InputOutput { get; }
     public LexicalAnalysis LexicalAnalysis { get; }
     public SyntaxAnalysis SyntaxAnalysis { get; }
-    public SyntaxAnalysis Semantic { get; }
+    public SemanticalAnalyses Semantic { get; }
 
     public void PrintProgramErrors()
     {
