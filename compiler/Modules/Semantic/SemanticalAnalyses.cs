@@ -2,7 +2,14 @@ using static Lexical;
 using Modules.Semantic;
 using Microsoft.VisualBasic;
 namespace Modules;
-//TODO: почему опять уезжают ошибки дальше места их появления!
+
+// создай синтаксическое дерево для всех конструкций
+// добавляй в него элементы перегрузив все нужные методы и перед их base вызовом
+// добавляй в дерево имя конструкции.
+// после base вызова делай анализ дерева на то чтоб он был правильным.
+// всю эту тему с построением дерева сделай как декоратор над синтаксическим анализатором
+// и пускай этот класс исключительно выполняет функцию заполнения дерева, а 
+// твой семантический пускай от него наследуется.
 
 // описание переменных
 // описание массивов
@@ -16,19 +23,7 @@ public class SemanticalAnalyses : SyntaxAnalysis
 {
     string[] SupportedTypes = ["integer", "float", "char", "string", "byte"];
     SyntaxAnalysis _source;
-    /// <summary>
-    /// Список идентификаторов относительно каждого уровня.
-    /// Все глобальные переменные/функции/константы итд находятся в Identifiers[0]
-    /// Локальные идентификаторы для глобальной функции можно найти в Identifiers[1]
-    /// И.т.д вплоть до какого угодня уровня вложенности.
-    /// При выходе из области видимости все локальные идентификаторы затераются - 
-    /// т.е пока ты обрабатываешь тело глобальной функции все локальные идентификаторы 
-    /// сохраняются в Identifiers[1], но как только происходит выход из тела функции 
-    /// Identifiers[1] становится пустым.
-    /// Т.е текущие значения Identifiers хранят список идентификаторов валидных
-    /// только для текущего контекса
-    /// </summary>
-    IList<IDictionary<string, IdentifierInfo>> Identifiers;
+    IdentifierStorage identifierStorage;
     /// <summary>
     /// Вызывается после успешного вызова Accept.
     /// Принимает на вход принятый символ и его значение.
@@ -37,40 +32,12 @@ public class SemanticalAnalyses : SyntaxAnalysis
     public SemanticalAnalyses(SyntaxAnalysis source) : base(source.LexicalAnalysis, source.InputOutput, source.ErrorDescriptions, source.Configuration)
     {
         _source = source;
-        Identifiers = new List<IDictionary<string, IdentifierInfo>>();
+        identifierStorage = new();
     }
     public override bool AcceptHadError
     {
         get => _source.AcceptHadError;
         set => _source.AcceptHadError = value;
-    }
-    /// <summary>
-    /// Ищет самый актуальный идентификатор (предпочитая локальные глобальным).
-    /// Вернет null если не найден идентификатор с данным именем
-    /// </summary>
-    IdentifierInfo? SearchIdentifier(string name)
-    {
-        foreach (var i in Identifiers.Reverse())
-        {
-            if (i is null || i.Count == 0) continue;
-            if (i.TryGetValue(name, out var value))
-                return value;
-        }
-        return null;
-    }
-    bool RemoveIdentifier(string name)
-    {
-        foreach (var i in Identifiers.Reverse())
-        {
-            if (i is null || i.Count == 0) continue;
-            if (i.Remove(name))
-                return true;
-        }
-        return false;
-    }
-    void AddIdentifier(IdentifierInfo ind)
-    {
-        Identifiers.Last().Add(ind.Name, ind);
     }
     protected override bool Accept(byte expectedSymbol)
     {
@@ -87,10 +54,9 @@ public class SemanticalAnalyses : SyntaxAnalysis
     #region НоваяОбласть
     void NewZone(Action insideWork)
     {
-        var newInfoMap = new Dictionary<string, IdentifierInfo>();
-        Identifiers.Add(newInfoMap);
+        identifierStorage.NewLayer();
         insideWork();
-        Identifiers.RemoveAt(Identifiers.Count - 1);
+        identifierStorage.DropLayer();
     }
     public override void FunctionDefinition()
     {
@@ -113,7 +79,7 @@ public class SemanticalAnalyses : SyntaxAnalysis
         AfterAccept = (sym, value, pos) =>
         {
             if (sym != ident) return;
-            var ind = SearchIdentifier(value);
+            var ind = identifierStorage.Search(value);
             //если уже добавлена переменная вызываем ошибку
             if (ind is not null)
             {
@@ -127,7 +93,7 @@ public class SemanticalAnalyses : SyntaxAnalysis
             }
             localVariables.Add(value);
             //добавляем переменную пока с неизвестным типом
-            AddIdentifier(new IdentifierInfo
+            identifierStorage.Add(new IdentifierInfo
             {
                 IdentifierType = IdentifierType.VARS,
                 Name = value
@@ -145,13 +111,77 @@ public class SemanticalAnalyses : SyntaxAnalysis
         if (variableType is null) return;
         foreach (var v in localVariables)
         {
-            if (SearchIdentifier(v) is IdentifierInfo t)
+            if (identifierStorage.Search(v) is IdentifierInfo t)
                 t.VariableType = variableType;
         }
         // ident - TypeName
         // array[num_const..num_const] of ident
         // array[num_const..num_const] of array
         AfterAccept = (_, _, _) => { };
+    }
+    #endregion
+    #region Выражение
+    public override void Expression()
+    {
+        base.Expression();
+    }
+    public override void SimpleExpression()
+    {
+        base.SimpleExpression();
+    }
+    public override void RelationOperationCall()
+    {
+        base.RelationOperationCall();
+    }
+    public override void SignSymbolsCall()
+    {
+        base.SignSymbolsCall();
+    }
+    public override void AdditiveOperationCall()
+    {
+        base.AdditiveOperationCall();
+    }
+    public override void Term()
+    {
+        base.Term();
+    }
+    public override void MultiplicativeOperationCall()
+    {
+        base.MultiplicativeOperationCall();
+    }
+    public override void Factor()
+    {
+        base.Factor();
+    }
+    public override void ConstantWithoutSignCall()
+    {
+        base.ConstantWithoutSignCall();
+    }
+    public override void Subexpression()
+    {
+        base.Subexpression();
+    }
+    #endregion
+    #region Переменная
+    public override void Variable()
+    {
+        base.Variable();
+    }
+    public override void FullVariable()
+    {
+        base.FullVariable();
+    }
+    public override void VariableComponent()
+    {
+        base.VariableComponent();
+    }
+    public override void IndexedVariable()
+    {
+        base.IndexedVariable();
+    }
+    public override void FieldDefinition()
+    {
+        base.FieldDefinition();
     }
     #endregion
     IVariableType? ReadType()
@@ -206,7 +236,8 @@ public class SemanticalAnalyses : SyntaxAnalysis
                     });
                     return null;
                 }
-                if(rangeType.Upper < rangeType.Lower){
+                if (rangeType.Upper < rangeType.Lower)
+                {
                     InputOutput.LineErrors(right.pos.LineNumber).Add(new Error()
                     {
                         ErrorCode = (long)ErrorCodes.InvalidArrayDimension,

@@ -512,7 +512,6 @@ public class SyntaxAnalysis
     }
     #endregion
     #region Expression
-    static byte[] RelationOperation;
     static byte[] ExpressionStart;
     public virtual void Expression()
     {
@@ -520,22 +519,28 @@ public class SyntaxAnalysis
         Repeat(
             () =>
             {
-                Accept(RelationOperation);
+                RelationOperationCall();
                 SimpleExpression();
             },
             RelationOperation,
             0, 1
         );
     }
-    static byte[] SignSymbols;
+    static byte[] RelationOperation;
+    public virtual void RelationOperationCall(){
+        Accept(RelationOperation);
+    }
     static byte[] AdditiveOperation;
+    public virtual void AdditiveOperationCall(){
+        Accept(AdditiveOperation);
+    }
     static byte[] SimpleExpressionStart;
     public virtual void SimpleExpression()
     {
         Repeat(
             () =>
             {
-                Accept(SignSymbols);
+                SignSymbolsCall();
             },
             SignSymbols,
             0, 1
@@ -544,14 +549,17 @@ public class SyntaxAnalysis
         Repeat(
             () =>
             {
-                Accept(AdditiveOperation);
+                AdditiveOperationCall();
                 Term();
             },
             AdditiveOperation,
             0
         );
     }
-    static byte[] MultiplicativeOperation;
+    static byte[] SignSymbols;
+    public virtual void SignSymbolsCall(){
+        Accept(SignSymbols);
+    }
     static byte[] TermStart;
     public virtual void Term()
     {
@@ -559,24 +567,37 @@ public class SyntaxAnalysis
         Repeat(
             () =>
             {
-                Accept(MultiplicativeOperation);
+                MultiplicativeOperationCall();
                 Factor();
             },
             MultiplicativeOperation,
             0
         );
     }
+    static byte[] MultiplicativeOperation;
+    public virtual void MultiplicativeOperationCall(){
+        Accept(MultiplicativeOperation);
+    }
     static byte[] ConstantWithoutSign;
+    public virtual void ConstantWithoutSignCall(){
+        Accept(ConstantWithoutSign);
+    }
+    public virtual void Subexpression(){
+        Accept('(');Expression();Accept(')');
+    }
+    public virtual void FactorNegation(){
+        Accept(notsy);Factor();
+    }
     static byte[] FactorStart;
     public virtual void Factor()
     {
         Or([
             ("function call",FunctionCall,FunctionCallStart),
-            ("const without sign",()=>Accept(ConstantWithoutSign),[ConstantWithoutSign]),
+            ("const without sign",ConstantWithoutSignCall,[ConstantWithoutSign]),
             ("variable",Variable,[VariableStart[0]]),
-            ("(",()=>{Accept('(');Expression();Accept(')');},[[(byte)'(']]),
+            ("subexpression in ()",Subexpression,[[(byte)'(']]),
             ("set",Set,[SetStart]),
-            ("not",()=>{Accept(notsy);Factor();},[[notsy]]),
+            ("not",FactorNegation,[[notsy]]),
         ]);
     }
     static byte[][] VariableStart;
@@ -715,13 +736,24 @@ public class SyntaxAnalysis
     static byte[] FormalParametersSectionStart;
     public virtual void FormalParametersSection(){
         Or([
-            ("var",()=>{Accept(varsy);ParametersGroup();},[varsy]),
-            ("function",()=>{Accept(functionsy);ParametersGroup();},[functionsy]),
-            ("procedure",()=>{Accept(proceduresy);ParametersGroup();},[proceduresy]),
-            ("ident",ParametersGroup,ParametersGroupStart),
+            ("var",VarParametersGroup,[varsy]),
+            ("function",FunctionParametersGroup,[functionsy]),
+            ("procedure",ProcedureParametersGroup,[proceduresy]),
+            ("ident",IdentParametersGroup,ParametersGroupStart),
         ]);
     }
-        
+    public virtual void VarParametersGroup(){
+        Accept(varsy);ParametersGroup();
+    }
+    public virtual void FunctionParametersGroup(){
+        Accept(functionsy);ParametersGroup();
+    }
+    public virtual void ProcedureParametersGroup(){
+        Accept(proceduresy);ParametersGroup();
+    }
+    public virtual void IdentParametersGroup(){
+        ParametersGroup();
+    }
     static byte[] ParametersGroupStart;
     public virtual void ParametersGroup(){
         Accept(ident);
@@ -797,19 +829,20 @@ public class SyntaxAnalysis
     static byte[][] AssignOperatorStart;
     public virtual void AssignOperator()
     {
-
         Or([
-            ("variable",()=>{
-                Variable();
-                Accept(assign);
-                Expression();
-            },VariableStart[0]),
-            ("function name",()=>{
-                FunctionName();
-                Accept(assign);
-                Expression();
-            },FunctionNameStart)
+            ("variable",VariableAssignOperator,VariableStart[0]),
+            ("function name",FunctionAssignOperator,FunctionNameStart)
         ]);
+    }
+    public virtual void VariableAssignOperator(){
+        Variable();
+        Accept(assign);
+        Expression();
+    }
+    public virtual void FunctionAssignOperator(){
+        FunctionName();
+        Accept(assign);
+        Expression();
     }
     static byte[] IfOperatorStart;
     public virtual void IfOperator()
@@ -833,8 +866,11 @@ public class SyntaxAnalysis
     {
         Or([
             ("unlabeled operator",UnlabeledOperator,UnlabeledOperatorStart),
-            ("label",()=>{Label();UnlabeledOperator();},LabelStart),
+            ("label",LabeledOperator,LabelStart),
         ]);
+    }
+    public virtual void LabeledOperator(){
+        Label();UnlabeledOperator();
     }
     static byte[] UnlabeledOperatorStart;
     public virtual void UnlabeledOperator()
@@ -1014,13 +1050,29 @@ public class SyntaxAnalysis
     public virtual void Constant()
     {
         Or([
-            ("unsigned int constant",()=>Accept(intc),[intc]),
-            ("int constant",()=>{Sign();Accept(intc);},SignStart),
-            ("const name",ConstantName,ConstantNameStart),
-            ("const name with sign",()=>{Sign();ConstantName();},SignStart),
-            ("string constant",()=>Accept(stringc),[stringc])
+            ("unsigned int constant",UnsignedIntConstant,[[intc]]),
+            ("int constant",IntConstant,IntConstantStart),
+            ("const name",ConstantName,[ConstantNameStart]),
+            ("const name with sign",ConstNameWithSign,ConstNameWithSignStart),
+            ("string constant",StringConstant,StringConstantStart)
         ]);
     }
+    public virtual void UnsignedIntConstant(){
+        Accept(intc);
+    }
+    static byte[][] StringConstantStart=>[[stringc]];
+    public virtual void StringConstant(){
+        Accept(stringc);
+    }
+    static byte[][] ConstNameWithSignStart => [SignStart,ConstantNameStart];
+    public virtual void ConstNameWithSign(){
+        Sign();ConstantName();
+    }
+    static byte[][] IntConstantStart=>[SignStart,[intc]];
+    public virtual void IntConstant(){
+        Sign();Accept(intc);
+    }
+
     static byte[] SignStart;
     public virtual void Sign()
     {
