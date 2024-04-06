@@ -1,4 +1,6 @@
 
+using Modules.Nodes;
+
 namespace Modules;
 
 // создай синтаксическое дерево для всех конструкций
@@ -11,10 +13,19 @@ namespace Modules;
 //декоратор-объект для SyntaxAnalysis
 public class SyntaxTreeFactory : SyntaxAnalysis
 {
+    /// <summary>
+    /// Текущая активная конструкция. 
+    /// При появлении вхождения новой конструкции она будет добавлена 
+    /// к детям данной вершины.
+    /// </summary>
+    INode Head;
+    INode Root;
     SyntaxAnalysis _source;
     public SyntaxTreeFactory(SyntaxAnalysis source) : base(source.LexicalAnalysis, source.InputOutput, source.ErrorDescriptions, source.Configuration)
     {
         _source = source;
+        Root = new StartBlock();
+        Head = Root;
     }
 
     public override bool AcceptHadError
@@ -24,358 +35,372 @@ public class SyntaxTreeFactory : SyntaxAnalysis
     }
     protected override bool Accept(byte expectedSymbol)
     {
-        return base.Accept(expectedSymbol);
+        var currentSymbol = Symbol;
+        var currentValue = SymbolValue;
+        var pos = Pos;
+        if(base.Accept(expectedSymbol)){
+            Head.AddChild(new Accept(Head,pos,currentValue,currentSymbol));
+            return true;
+        }
+        return false;
+    }
+    void AddNode(Action construction,INode node){
+        var prevHead = Head;
+        Head.AddChild(node);
+        Head=node;
+        construction();
+        if(AcceptHadError){
+            Head = Root;
+            return;
+        }
+        Head=prevHead;
     }
     public override void ActualParameter()
     {
-        base.ActualParameter();
+        AddNode(base.ActualParameter,new ActualParameter(Head));
     }
     public override void AdditiveOperationCall()
     {
-        base.AdditiveOperationCall();
+        AddNode(base.AdditiveOperationCall, new AdditiveOperationCall(Head));
     }
     public override void AppendOperator()
     {
-        base.AppendOperator();
+        AddNode(base.AppendOperator, new AppendOperator(Head));
     }
     public override void AssignOperator()
     {
-        base.AssignOperator();
+        AddNode(base.AssignOperator, new AssignOperator(Head));
     }
     public override void CombinedType()
     {
-        base.CombinedType();
+        AddNode(base.CombinedType, new CombinedType(Head));
     }
     public override void ComplexOperator()
     {
-        base.ComplexOperator();
+        AddNode(base.ComplexOperator, new ComplexOperator(Head));
     }
     public override void CompoundOperator()
     {
-        base.CompoundOperator();
+        AddNode(base.CompoundOperator, new CompoundOperator(Head));
     }
     public override void CompoundType()
     {
-        base.CompoundType();
+        AddNode(base.CompoundType, new CompoundType(Head));
     }
     public override void Constant()
     {
-        base.Constant();
+        AddNode(base.Constant, new Constant(Head));
     }
     public override void ConstantName()
     {
-        base.ConstantName();
+        AddNode(base.ConstantName, new ConstantName(Head));
     }
     public override void ConstantsSection()
     {
-        base.ConstantsSection();
+        AddNode(base.ConstantsSection, new ConstantsSection(Head));
     }
     public override void ConstantWithoutSignCall()
     {
-        base.ConstantWithoutSignCall();
+        AddNode(base.ConstantWithoutSignCall, new ConstantWithoutSignCall(Head));
     }
     public override void ConstDefinition()
     {
-        base.ConstDefinition();
+        AddNode(base.ConstDefinition, new ConstDefinition(Head));
     }
     public override void ConstNameWithSign()
     {
-        base.ConstNameWithSign();
+        AddNode(base.ConstNameWithSign, new ConstNameWithSign(Head));
     }
     public override void CycleOperator()
     {
-        base.CycleOperator();
+        AddNode(base.CycleOperator, new CycleOperator(Head));
     }
     public override void CycleParameter()
     {
-        base.CycleParameter();
+        AddNode(base.CycleParameter, new CycleParameter(Head));
     }
     public override void Direction()
     {
-        base.Direction();
+        AddNode(base.Direction, new Direction(Head));
     }
     public override void Element()
     {
-        base.Element();
+        AddNode(base.Element, new Element(Head));
     }
     public override void ElementsList()
     {
-        base.ElementsList();
+        AddNode(base.ElementsList, new ElementsList(Head));
     }
     public override void EnumType()
     {
-        base.EnumType();
+        AddNode(base.EnumType, new EnumType(Head));
     }
     public override void Expression()
     {
-        base.Expression();
+        AddNode(base.Expression, new Expression(Head));
     }
     public override void Factor()
     {
-        base.Factor();
+        AddNode(base.Factor, new Factor(Head));
     }
     public override void FactorNegation()
     {
-        base.FactorNegation();
+        AddNode(base.FactorNegation, new FactorNegation(Head));
     }
     public override void FieldDefinition()
     {
-        base.FieldDefinition();
+        AddNode(base.FieldDefinition, new FieldDefinition(Head));
     }
     public override void FieldName()
     {
-        base.FieldName();
+        AddNode(base.FieldName, new FieldName(Head));
     }
     public override void ForCycle()
     {
-        base.ForCycle();
+        AddNode(base.ForCycle, new ForCycle(Head));
     }
     public override void FormalParametersSection()
     {
-        base.FormalParametersSection();
+        AddNode(base.FormalParametersSection, new FormalParametersSection(Head));
     }
     public override void FullVariable()
     {
-        base.FullVariable();
+        AddNode(base.FullVariable, new FullVariable(Head));
     }
     public override void FunctionCall()
     {
-        base.FunctionCall();
+        AddNode(base.FunctionCall, new FunctionCall(Head));
     }
     public override void FunctionDefinition()
     {
-        base.FunctionDefinition();
+        AddNode(base.FunctionDefinition, new FunctionDefinition(Head));
     }
     public override void FunctionName()
     {
-        base.FunctionName();
+        AddNode(base.FunctionName, new FunctionName(Head));
     }
     public override void GotoOperator()
     {
-        base.GotoOperator();
+        AddNode(base.GotoOperator, new GotoOperator(Head));
     }
     public override void IfOperator()
     {
-        base.IfOperator();
+        AddNode(base.IfOperator, new IfOperator(Head));
     }
     public override void IndexedVariable()
     {
-        base.IndexedVariable();
+        AddNode(base.IndexedVariable, new IndexedVariable(Head));
     }
     public override void IntConstant()
     {
-        base.IntConstant();
+        AddNode(base.IntConstant, new IntConstant(Head));
     }
     public override void Label()
     {
-        base.Label();
+        AddNode(base.Label, new Label(Head));
     }
     public override void LabelsSection()
     {
-        base.LabelsSection();
+        AddNode(base.LabelsSection, new LabelsSection(Head));
     }
     public override void MultiplicativeOperationCall()
     {
-        base.MultiplicativeOperationCall();
+        AddNode(base.MultiplicativeOperationCall, new MultiplicativeOperationCall(Head));
     }
     public override void Operator()
     {
-        base.Operator();
+        AddNode(base.Operator, new Operator(Head));
     }
     public override void OperatorsSection()
     {
-        base.OperatorsSection();
+        AddNode(base.OperatorsSection, new OperatorsSection(Head));
     }
     public override void ParametersGroup()
     {
-        base.ParametersGroup();
+        AddNode(base.ParametersGroup, new ParametersGroup(Head));
     }
     public override void ProcedureAndFunctionsSection()
     {
-        base.ProcedureAndFunctionsSection();
+        AddNode(base.ProcedureAndFunctionsSection, new ProcedureAndFunctionsSection(Head));
     }
     public override void ProcedureDefinition()
     {
-        base.ProcedureDefinition();
+        AddNode(base.ProcedureDefinition, new ProcedureDefinition(Head));
     }
     public override void ProcedureName()
     {
-        base.ProcedureName();
+        AddNode(base.ProcedureName, new ProcedureName(Head));
     }
     public override void ProcedureOperator()
     {
-        base.ProcedureOperator();
+        AddNode(base.ProcedureOperator, new ProcedureOperator(Head));
     }
     public override void ProcedureOrFunctionDefinition()
     {
-        base.ProcedureOrFunctionDefinition();
+        AddNode(base.ProcedureOrFunctionDefinition, new ProcedureOrFunctionDefinition(Head));
     }
     public override void RangedType()
     {
-        base.RangedType();
+        AddNode(base.RangedType, new RangedType(Head));
     }
     public override void RegularType()
     {
-        base.RegularType();
+        AddNode(base.RegularType, new RegularType(Head));
     }
     public override void RelationOperationCall()
     {
-        base.RelationOperationCall();
+        AddNode(base.RelationOperationCall, new RelationOperationCall(Head));
     }
     public override void RepeatCycle()
     {
-        base.RepeatCycle();
+        AddNode(base.RepeatCycle, new RepeatCycle(Head));
     }
     public override void SameTypeVariablesDescription()
     {
-        base.SameTypeVariablesDescription();
+        AddNode(base.SameTypeVariablesDescription, new SameTypeVariablesDescription(Head));
     }
     public override void SelectOperator()
     {
-        base.SelectOperator();
+        AddNode(base.SelectOperator, new SelectOperator(Head));
     }
     public override void Set()
     {
-        base.Set();
+        AddNode(base.Set, new Set(Head));
     }
     public override void SetType()
     {
-        base.SetType();
+        AddNode(base.SetType, new SetType(Head));
     }
     public override void Sign()
     {
-        base.Sign();
+        AddNode(base.Sign, new Sign(Head));
     }
     public override void SignSymbolsCall()
     {
-        base.SignSymbolsCall();
+        AddNode(base.SignSymbolsCall, new SignSymbolsCall(Head));
     }
     public override void SimpleExpression()
     {
-        base.SimpleExpression();
+        AddNode(base.SimpleExpression, new SimpleExpression(Head));
     }
     public override void SimpleOperator()
     {
-        base.SimpleOperator();
+        AddNode(base.SimpleOperator, new SimpleOperator(Head));
     }
     public override void SimpleType()
     {
-        base.SimpleType();
-    }
-    public override void StartBlock()
-    {
-        base.StartBlock();
+        AddNode(base.SimpleType, new SimpleType(Head));
     }
     public override void StringConstant()
     {
-        base.StringConstant();
+        AddNode(base.StringConstant, new StringConstant(Head));
     }
     public override void Subexpression()
     {
-        base.Subexpression();
+        AddNode(base.Subexpression, new Subexpression(Head));
     }
     public override void Term()
     {
-        base.Term();
+        AddNode(base.Term, new Term(Head));
     }
     public override void Type_()
     {
-        base.Type_();
+        AddNode(base.Type_, new Type_(Head));
     }
     public override void TypeName()
     {
-        base.TypeName();
+        AddNode(base.TypeName, new TypeName(Head));
     }
     public override void TypesSection()
     {
-        base.TypesSection();
+        AddNode(base.TypesSection, new TypesSection(Head));
     }
     public override void UnlabeledOperator()
     {
-        base.UnlabeledOperator();
+        AddNode(base.UnlabeledOperator, new UnlabeledOperator(Head));
     }
     public override void UnpackedCompoundType()
     {
-        base.UnpackedCompoundType();
+        AddNode(base.UnpackedCompoundType, new UnpackedCompoundType(Head));
     }
     public override void UnsignedIntConstant()
     {
-        base.UnsignedIntConstant();
+        AddNode(base.UnsignedIntConstant, new UnsignedIntConstant(Head));
     }
     public override void Variable()
     {
-        base.Variable();
+        AddNode(base.Variable, new Variable(Head));
     }
     public override void VariableArray()
     {
-        base.VariableArray();
+        AddNode(base.VariableArray, new VariableArray(Head));
     }
     public override void VariableComponent()
     {
-        base.VariableComponent();
+        AddNode(base.VariableComponent, new VariableComponent(Head));
     }
     public override void VariableName()
     {
-        base.VariableName();
+        AddNode(base.VariableName, new VariableName(Head));
     }
     public override void VariableRecord()
     {
-        base.VariableRecord();
+        AddNode(base.VariableRecord, new VariableRecord(Head));
     }
     public override void VariableRecordsList()
     {
-        base.VariableRecordsList();
+        AddNode(base.VariableRecordsList, new VariableRecordsList(Head));
     }
     public override void VariablesSection()
     {
-        base.VariablesSection();
+        AddNode(base.VariablesSection, new VariablesSection(Head));
     }
     public override void VariantLabel()
     {
-        base.VariantLabel();
+        AddNode(base.VariantLabel, new VariantLabel(Head));
     }
     public override void VariantLabelsList()
     {
-        base.VariantLabelsList();
+        AddNode(base.VariantLabelsList, new VariantLabelsList(Head));
     }
     public override void VariantListItem()
     {
-        base.VariantListItem();
+        AddNode(base.VariantListItem, new VariantListItem(Head));
     }
     public override void VariantOperator()
     {
-        base.VariantOperator();
+        AddNode(base.VariantOperator, new VariantOperator(Head));
     }
     public override void WhileCycle()
     {
-        base.WhileCycle();
+        AddNode(base.WhileCycle, new WhileCycle(Head));
     }
     public override void FunctionAssignOperator()
     {
-        base.FunctionAssignOperator();
+        AddNode(base.FunctionAssignOperator, new FunctionAssignOperator(Head));
     }
     public override void FunctionParametersGroup()
     {
-        base.FunctionParametersGroup();
+        AddNode(base.FunctionParametersGroup, new FunctionParametersGroup(Head));
     }
     public override void IdentParametersGroup()
     {
-        base.IdentParametersGroup();
+        AddNode(base.IdentParametersGroup, new IdentParametersGroup(Head));
     }
     public override void LabeledOperator()
     {
-        base.LabeledOperator();
+        AddNode(base.LabeledOperator, new LabeledOperator(Head));
     }
     public override void ProcedureParametersGroup()
     {
-        base.ProcedureParametersGroup();
+        AddNode(base.ProcedureParametersGroup, new ProcedureParametersGroup(Head));
     }
     public override void VariableAssignOperator()
     {
-        base.VariableAssignOperator();
+        AddNode(base.VariableAssignOperator, new VariableAssignOperator(Head));
     }
     public override void VarParametersGroup()
     {
-        base.VarParametersGroup();
+        AddNode(base.VarParametersGroup, new VarParametersGroup(Head));
     }
 }

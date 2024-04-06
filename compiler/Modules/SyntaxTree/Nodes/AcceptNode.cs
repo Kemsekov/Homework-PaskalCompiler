@@ -1,7 +1,7 @@
 namespace Modules.Nodes;
-public class AcceptNode : BaseNode
+public class Accept : BaseNode
 {
-    public AcceptNode(TextPosition pos, string value, byte symbol)
+    public Accept(INode parent,TextPosition pos, string value, byte symbol) : base(parent)
     {
         Pos = pos;
         Value = value;
