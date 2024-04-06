@@ -2,23 +2,29 @@ using Modules;
 
 public class MainHostedService : BackgroundService
 {
-    public MainHostedService(InputOutput inputOutput,LexicalAnalysis lexicalAnalysis,SyntaxAnalysis syntaxAnalysis, SemanticalAnalyses semantic)
+    public MainHostedService(
+        InputOutput inputOutput,
+        LexicalAnalysis lexicalAnalysis,
+        SyntaxAnalysis syntaxAnalysis, 
+        SyntaxTreeFactory syntaxTreeFactory,
+        SemanticalAnalyses semantic)
     {
         InputOutput=inputOutput;
         LexicalAnalysis = lexicalAnalysis;
         SyntaxAnalysis=syntaxAnalysis;
         Semantic=semantic;
+        SyntaxTreeFactory=syntaxTreeFactory;
     }
 
     public InputOutput InputOutput { get; }
     public LexicalAnalysis LexicalAnalysis { get; }
     public SyntaxAnalysis SyntaxAnalysis { get; }
     public SemanticalAnalyses Semantic { get; }
-
+    public SyntaxTreeFactory SyntaxTreeFactory { get; }
     public void PrintProgramErrors()
     {
         //just run block of syntax analysis
-        Semantic.StartBlock();
+        SyntaxTreeFactory.StartBlock();
         System.Console.WriteLine("-------PROGRAM-------");
         //print program and errors
         var end = (ulong)InputOutput.Program.Lines.Length;

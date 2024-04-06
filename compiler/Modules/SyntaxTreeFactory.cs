@@ -49,6 +49,9 @@ public class SyntaxTreeFactory : SyntaxAnalysis
         Head.AddChild(node);
         Head=node;
         construction();
+        if(Head.Children.Count()==0){
+            Head.Parent?.RemoveChild(Head);
+        }
         if(AcceptHadError){
             Head = Root;
             return;

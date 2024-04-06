@@ -23,6 +23,7 @@ public static class AppInstance
         });
         services.AddSingleton<InputOutput>();
         services.AddSingleton<LexicalAnalysis>();
+        services.AddSingleton<SyntaxTreeFactory>();
         services.AddSingleton<SyntaxAnalysis>();
         services.AddSingleton<SemanticalAnalyses>();
         services.AddHostedService<MainHostedService>();

@@ -9,7 +9,7 @@ public abstract class BaseNode : INode
     {
         Parent = parent;
     }
-    HashSet<INode> children = new();
+    List<INode> children = new();
     public IEnumerable<INode> Children =>children;
 
     public INode? Parent{get;}
