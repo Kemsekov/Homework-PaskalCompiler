@@ -18,8 +18,11 @@ public class SyntaxTreeFactory : SyntaxAnalysis
     /// При появлении вхождения новой конструкции она будет добавлена 
     /// к детям данной вершины.
     /// </summary>
-    INode Head;
-    INode Root;
+    public INode Head{get;protected set;}
+    /// <summary>
+    /// Корень синтаксического дерева
+    /// </summary>
+    public INode Root{get;protected set;}
     SyntaxAnalysis _source;
     public SyntaxTreeFactory(SyntaxAnalysis source) : base(source.LexicalAnalysis, source.InputOutput, source.ErrorDescriptions, source.Configuration)
     {

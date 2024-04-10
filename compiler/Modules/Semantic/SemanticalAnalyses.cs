@@ -19,7 +19,7 @@ namespace Modules;
 // циклы
 
 //декоратор-объект для SyntaxAnalysis
-public class SemanticalAnalyses : SyntaxAnalysis
+public class SemanticalAnalyses : SyntaxTreeFactory
 {
     string[] SupportedTypes = ["integer", "float", "char", "string", "byte"];
     SyntaxAnalysis _source;
@@ -29,7 +29,7 @@ public class SemanticalAnalyses : SyntaxAnalysis
     /// Принимает на вход принятый символ и его значение.
     /// </summary>
     Action<byte, string, TextPosition> AfterAccept = (_, _, _) => { };
-    public SemanticalAnalyses(SyntaxAnalysis source) : base(source.LexicalAnalysis, source.InputOutput, source.ErrorDescriptions, source.Configuration)
+    public SemanticalAnalyses(SyntaxAnalysis source) : base(source)
     {
         _source = source;
         identifierStorage = new();

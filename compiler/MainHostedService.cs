@@ -29,9 +29,8 @@ public class MainHostedService : BackgroundService
         //print program and errors
         var end = (ulong)InputOutput.Program.Lines.Length;
         for(ulong i = 0;i<end;i++){
-            if(InputOutput.IsErrorOnLine(i)){
+            if(InputOutput.IsErrorOnLine(i))
                 InputOutput.PrintErrorsOnLine(i);
-            }
             else
                 System.Console.WriteLine(InputOutput.Program.Lines[i]);
         }
