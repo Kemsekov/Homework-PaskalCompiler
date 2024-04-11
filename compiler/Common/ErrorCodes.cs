@@ -16,6 +16,7 @@ public enum ErrorCodes{
     UnexpectedSymbol = 11,
     VariableAlreadyDefined = 12,
     TypeNotSupported=13,
-    InvalidArrayDimension=14
-    
+    InvalidArrayDimension=14,
+    UndefinedVariable = 15,
+    NotNumericTerm = 16
 }

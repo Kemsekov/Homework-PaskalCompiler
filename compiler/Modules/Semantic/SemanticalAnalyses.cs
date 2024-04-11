@@ -1,6 +1,7 @@
 using static Lexical;
 using Modules.Semantic;
 using Microsoft.VisualBasic;
+using Modules.Nodes;
 namespace Modules;
 
 // создай синтаксическое дерево для всех конструкций
@@ -21,7 +22,7 @@ namespace Modules;
 //декоратор-объект для SyntaxAnalysis
 public class SemanticalAnalyses : SyntaxTreeFactory
 {
-    string[] SupportedTypes = ["integer", "float", "char", "string", "byte"];
+    string[] SupportedTypes = ["integer", "float", "char", "string", "byte", "boolean"];
     SyntaxAnalysis _source;
     IdentifierStorage identifierStorage;
     /// <summary>
@@ -141,47 +142,152 @@ public class SemanticalAnalyses : SyntaxTreeFactory
     {
         base.AdditiveOperationCall();
     }
+    // для каждой пары значений фактор операция фактор
+    // сделать анализ того что используются корректные типы
     public override void Term()
     {
         base.Term();
+        if(AcceptedNode is not Term tr) return;
+        //factor {op factor}
+        if(tr.Children.Count()==1){
+            tr.Type=(tr.Children.First() as Factor ?? null)?.Type;
+            return;
+        }
+        var tokens = tr.Tokens();
+        var f1 =  tr.Children.ElementAt(0) as Factor;
+        var op1 = tr.Children.ElementAt(1) as MultiplicativeOperationCall;
+        var f2 =  tr.Children.ElementAt(2) as Factor;
+        if(f1 is null || op1 is null || f2 is null) return;
+        // mul_op   = { * / mod and div }
+        // float_op = { * / mod }
+        // bool_op  = { and }
+
+        // int   float_op float    = float
+        // float float_op int      = float
+        // float float_op float    = float
+        // boolean bool_op boolean = boolean
+        // int div int             = int
+        // int mod int             = int
+        // int float_op int        = int
+        // else error
+        var intType = new Semantic.SimpleType{Name="integer"};
+        var floatType = new Semantic.SimpleType{Name="float"};
+        Semantic.SimpleType? IsNumber(ITypedTerm n){
+
+            if(intType.Equals(n.Type))
+                return intType;
+            if(floatType.Equals(n.Type))
+                return floatType;
+            return null;
+        }
+        var f1Type = IsNumber(f1);
+        var f2Type = IsNumber(f2);
+        if(f1Type is null){
+            var firstPos  = tokens[0].TextPosition;
+            InputOutput.LineErrors(firstPos.LineNumber).Add(
+                new Error{
+                    ErrorCode= (long)ErrorCodes.NotNumericTerm,
+                    Position=firstPos,
+                    SpecificErrorDescription="first term is not recognized"
+                }
+            );
+        }
+        if(f2Type is null){
+            var firstPos  = tokens[0].TextPosition;
+            InputOutput.LineErrors(firstPos.LineNumber).Add(
+                new Error{
+                    ErrorCode= (long)ErrorCodes.NotNumericTerm,
+                    Position=firstPos,
+                    SpecificErrorDescription="second term is not recognized"
+                }
+            );
+        }
+        if(f1Type is null || f2Type is null) return;
+
+        
+
     }
     public override void MultiplicativeOperationCall()
     {
         base.MultiplicativeOperationCall();
     }
+    //анализируем из всех подтипов только константы и переменные и (выражения)
     public override void Factor()
     {
         base.Factor();
-    }
-    public override void ConstantWithoutSignCall()
-    {
-        base.ConstantWithoutSignCall();
+        if(AcceptedNode is not Factor factor) return;
+        factor.Operation(n=>{
+            if(factor.Type is not null) return;
+            if(n is not ITypedTerm tr) return;
+            factor.Type=tr.Type;
+        });
     }
     public override void Subexpression()
     {
         base.Subexpression();
+        if(AcceptedNode is not Subexpression sube) return;
+        IVariableType? variableType = null;
+        sube.Operation(n=>{
+            if(n is not Expression ex) return;
+            variableType=ex.Type;
+        });
+        sube.Type=variableType;
     }
-    #endregion
-    #region Переменная
+    //очень упрощенный вариант обработки переменной. Мы ищем только имя переменной iden
+    //и по ней определяем тип переменной
     public override void Variable()
     {
         base.Variable();
+        if(AcceptedNode is not Variable fv) return;
+        var variableName = "";
+        var pos = new TextPosition();
+        fv.Operation(n=>{
+            if(variableName!="") return;
+            if(n is Accept acn && acn.Symbol==ident){
+                variableName=acn.Value;
+                pos=acn.Pos;
+            }
+        });
+        if(variableName=="") return;
+        var variableIdentifier = identifierStorage.Search(variableName);
+        if(variableIdentifier is null){
+            InputOutput.LineErrors(pos.LineNumber).Add(
+                new Error{
+                    ErrorCode= (long)ErrorCodes.UndefinedVariable,
+                    Position=pos,
+                    SpecificErrorDescription=$"Unknown variable {variableName}"
+                }
+            );
+            return;
+        }
+        fv.Type=variableIdentifier.Value.VariableType;
     }
-    public override void FullVariable()
+    // упрощенная обработка констант где мы читаем только l-value константы
+    // intc floatc stringc
+    public override void Constant()
     {
-        base.FullVariable();
-    }
-    public override void VariableComponent()
-    {
-        base.VariableComponent();
-    }
-    public override void IndexedVariable()
-    {
-        base.IndexedVariable();
-    }
-    public override void FieldDefinition()
-    {
-        base.FieldDefinition();
+        base.Constant();
+        if(AcceptedNode is not Constant c) return;
+        var constType = "";
+        c.Operation(n=>{
+            if(constType!="" || n is not Accept acn) return;
+            var sym = acn.Symbol;
+            switch(sym){
+                case intc:
+                    constType="integer";
+                break;
+                case floatc:
+                    constType="float";
+                break;
+                case stringc:
+                    constType="string";
+                break;
+            }
+        });
+        if(constType=="") return;
+        c.Type=new Semantic.SimpleType(){
+            Name=constType
+        };
     }
     #endregion
     IVariableType? ReadType()
@@ -194,7 +300,7 @@ public class SemanticalAnalyses : SyntaxTreeFactory
         };
         Type_();
         if (AcceptHadError) return null;
-        SimpleType? simpleTypeHandelr(byte sym, string value, TextPosition pos)
+        Semantic.SimpleType? simpleTypeHandelr(byte sym, string value, TextPosition pos)
         {
             if (!SupportedTypes.Contains(value))
             {
@@ -206,7 +312,7 @@ public class SemanticalAnalyses : SyntaxTreeFactory
                 });
                 return null;
             }
-            return new SimpleType
+            return new Semantic.SimpleType
             {
                 Name = value
             };
@@ -216,12 +322,12 @@ public class SemanticalAnalyses : SyntaxTreeFactory
             var ofsySplit = acceptedValues.Split(v => v.sym == ofsy).ToList();
             var borders = ofsySplit.First().Where(v => v.sym == intc).ToList();
 
-            var rangedTypes = new List<RangedType>();
+            var rangedTypes = new List<Semantic.RangedType>();
             foreach (var range in borders.Chunk(2))
             {
                 var left = range[0];
                 var right = range[1];
-                var rangeType = new RangedType()
+                var rangeType = new Semantic.RangedType()
                 {
                     Lower = int.Parse(left.value),
                     Upper = int.Parse(right.value)

@@ -1,6 +1,12 @@
+using Modules.Semantic;
+
 namespace Modules.Nodes;
-public class Subexpression : BaseNode
+/// <summary>
+/// Subexpression in a form like (expression)
+/// </summary>
+public class Subexpression : BaseNode, ITypedTerm
 {
+    public IVariableType? Type{get;set;}
     public Subexpression(INode parent) : base(parent)
     {
     }

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 
 namespace Modules.Nodes;
-
+public record Token(byte Symbol, string Value, TextPosition TextPosition);
 public abstract class BaseNode : INode
 {
     public string Name =>this.GetType().Name;
@@ -21,5 +21,20 @@ public abstract class BaseNode : INode
     public void RemoveChild(INode node)
     {
         children.Remove(node);
+    }
+    public void Operation(Action<INode> action){
+        foreach(var c in children){
+            c.Operation(action);
+        }
+        action(this);
+    }
+    /// <returns>Tokens that corresponds to inner</returns>
+    public Token[] Tokens(){
+        var tokens = new List<Token>();
+        Operation(n=>{
+            if(n is not Accept acn) return;
+            tokens.Add(new Token(acn.Symbol,acn.Value,acn.Pos));
+        });
+        return tokens.ToArray();
     }
 }

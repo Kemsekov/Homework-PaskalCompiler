@@ -23,12 +23,17 @@ public class SyntaxTreeFactory : SyntaxAnalysis
     /// Корень синтаксического дерева
     /// </summary>
     public INode Root{get;protected set;}
+    /// <summary>
+    /// Последняя принятая конструкция
+    /// </summary>
+    public INode AcceptedNode{get;protected set;}
     SyntaxAnalysis _source;
     public SyntaxTreeFactory(SyntaxAnalysis source) : base(source.LexicalAnalysis, source.InputOutput, source.ErrorDescriptions, source.Configuration)
     {
         _source = source;
         Root = new StartBlock();
         Head = Root;
+        AcceptedNode = Root;
     }
 
     public override bool AcceptHadError
@@ -52,11 +57,13 @@ public class SyntaxTreeFactory : SyntaxAnalysis
         Head.AddChild(node);
         Head=node;
         construction();
+        AcceptedNode = Head;
         if(Head.Children.Count()==0){
             Head.Parent?.RemoveChild(Head);
         }
         if(AcceptHadError){
             Head = Root;
+            AcceptedNode=Root;
             return;
         }
         Head=prevHead;
