@@ -158,53 +158,89 @@ public class SemanticalAnalyses : SyntaxTreeFactory
         var op1 = tr.Children.ElementAt(1) as MultiplicativeOperationCall;
         var f2 =  tr.Children.ElementAt(2) as Factor;
         if(f1 is null || op1 is null || f2 is null) return;
+        
         // mul_op   = { * / mod and div }
         // float_op = { * / mod }
         // bool_op  = { and }
+        // int_op   = { div mod * }
 
         // int   float_op float    = float
         // float float_op int      = float
         // float float_op float    = float
+        // int / int               = float
         // boolean bool_op boolean = boolean
-        // int div int             = int
-        // int mod int             = int
-        // int float_op int        = int
+        // int int_op int             = int
+        // int int_op int             = int
+        // int int_op int             = int
         // else error
+
         var intType = new Semantic.SimpleType{Name="integer"};
         var floatType = new Semantic.SimpleType{Name="float"};
+        var boolType = new Semantic.SimpleType{Name="boolean"};
+
         Semantic.SimpleType? IsNumber(ITypedTerm n){
 
             if(intType.Equals(n.Type))
                 return intType;
             if(floatType.Equals(n.Type))
                 return floatType;
+            if(boolType.Equals(n.Type))
+                return boolType;
             return null;
         }
-        var f1Type = IsNumber(f1);
-        var f2Type = IsNumber(f2);
-        if(f1Type is null){
-            var firstPos  = tokens[0].TextPosition;
-            InputOutput.LineErrors(firstPos.LineNumber).Add(
-                new Error{
-                    ErrorCode= (long)ErrorCodes.NotNumericTerm,
-                    Position=firstPos,
-                    SpecificErrorDescription="first term is not recognized"
-                }
-            );
-        }
-        if(f2Type is null){
-            var firstPos  = tokens[0].TextPosition;
-            InputOutput.LineErrors(firstPos.LineNumber).Add(
-                new Error{
-                    ErrorCode= (long)ErrorCodes.NotNumericTerm,
-                    Position=firstPos,
-                    SpecificErrorDescription="second term is not recognized"
-                }
-            );
-        }
-        if(f1Type is null || f2Type is null) return;
+        var firstPos  = tokens[0].TextPosition;
+  
+        Semantic.SimpleType? DetermineType(ITypedNodeTerm f1, Nodes.MultiplicativeOperationCall op_call, ITypedNodeTerm f2){
+            var f1Pos = f1.Tokens()[0].TextPosition;
+            var f2Pos = f2.Tokens()[0].TextPosition;
 
-        
+            var f1Type = IsNumber(f1);
+            var f2Type = IsNumber(f2);
+            var opToken = op_call.Tokens()[0];
+            var op = opToken.Symbol;
+            if(f1Type is null){
+                InputOutput.LineErrors(f1Pos.LineNumber).Add(
+                    new Error{
+                        ErrorCode= (long)ErrorCodes.NotNumericTerm,
+                        Position=f1Pos,
+                    }
+                );
+            }
+
+            if(f2Type is null){
+                InputOutput.LineErrors(f2Pos.LineNumber).Add(
+                    new Error{
+                        ErrorCode= (long)ErrorCodes.NotNumericTerm,
+                        Position=f2Pos,
+                    }
+                );
+            }
+            if(f1Type is null || f2Type is null) return null;
+            byte[] float_op = [star,slash,modsy];
+            byte[] int_op = [star,divsy,modsy];
+            byte[] bool_op = [andsy];
+            byte[] numeric_op = float_op.Concat(int_op).Distinct().ToArray();
+            
+            //ensure that both f1 and f2 is numeric if numeric operation is used
+            if(numeric_op.Contains(op)){
+                if(f1Type.Equals(boolType) || f2Type.Equals(boolType)){
+                    InputOutput.LineErrors(opToken.TextPosition.LineNumber).Add(
+                        new Error{
+                            ErrorCode= (long)ErrorCodes.UnsupportedOperation,
+                            Position=opToken.TextPosition,
+                            SpecificErrorDescription="cannot apply numeric operation on boolean"
+                        }
+                    );
+                    return null;
+                }
+                if(f1Type.Equals(floatType)){
+                    return floatType;
+                }
+            }
+
+
+
+        }
 
     }
     public override void MultiplicativeOperationCall()

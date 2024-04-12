@@ -28,10 +28,13 @@ public abstract class BaseNode : INode
         }
         action(this);
     }
+}
+
+public static class NodeExtensions{
     /// <returns>Tokens that corresponds to inner</returns>
-    public Token[] Tokens(){
+    public static Token[] Tokens(this INode node){
         var tokens = new List<Token>();
-        Operation(n=>{
+        node.Operation(n=>{
             if(n is not Accept acn) return;
             tokens.Add(new Token(acn.Symbol,acn.Value,acn.Pos));
         });
