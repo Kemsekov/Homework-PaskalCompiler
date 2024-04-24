@@ -526,6 +526,30 @@ public class SemanticalAnalyses : SyntaxTreeFactory
         };
     }
     #endregion
+    #region Приравнивание
+    //variable := expression
+    public override void VariableAssignOperator()
+    {
+        base.VariableAssignOperator();
+        if(AcceptedNode is not VariableAssignOperator ao) return;
+        var variable = ao.Children.First() as ITypedNodeTerm;
+        var expr = ao.Children.Last() as ITypedNodeTerm;
+        var assign = ao.Children.ElementAt(1).Tokens()[0].TextPosition;
+
+        if(expr.Type is null || variable.Type is null) return;
+        if(!variable.Type.Equals(expr.Type)){
+            var exprTypeName = (expr.Type as Semantic.SimpleType)?.Name ?? expr.Type.GetType().Name;
+            var variableTypeName = (variable.Type as Semantic.SimpleType)?.Name ?? variable.Type.GetType().Name;
+            InputOutput.LineErrors(assign.LineNumber).Add(
+                new Error{
+                    ErrorCode= (long)ErrorCodes.UnsupportedOperation,
+                    Position=assign,
+                    SpecificErrorDescription=$"cannot apply assign {exprTypeName} to {variableTypeName} variable"
+                }
+            );
+        }
+    }
+    #endregion
     IVariableType? ReadType()
     {
         var acceptedValues = new List<(byte sym, string value, TextPosition pos)>();

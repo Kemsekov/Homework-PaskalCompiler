@@ -9,5 +9,5 @@ var
 begin
    variable2 := -2+23.0*3-1.0/(52*13-4) + (23=9)>variable2-True;
    variable2 := variable2+3;
-   variable3 := variable3+3;
+   variable3 := variable2+3;
 end;
