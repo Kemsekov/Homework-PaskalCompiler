@@ -535,7 +535,7 @@ public class SemanticalAnalyses : SyntaxTreeFactory
         var variable = ao.Children.First() as ITypedNodeTerm;
         var expr = ao.Children.Last() as ITypedNodeTerm;
         var assign = ao.Children.ElementAt(1).Tokens()[0].TextPosition;
-
+        //
         if(expr.Type is null || variable.Type is null) return;
         if(!variable.Type.Equals(expr.Type)){
             var exprTypeName = (expr.Type as Semantic.SimpleType)?.Name ?? expr.Type.GetType().Name;
