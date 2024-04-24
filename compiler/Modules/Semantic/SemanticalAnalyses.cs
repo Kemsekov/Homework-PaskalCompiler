@@ -2,6 +2,7 @@ using static Lexical;
 using Modules.Semantic;
 using Microsoft.VisualBasic;
 using Modules.Nodes;
+using System.Linq;
 namespace Modules;
 
 // создай синтаксическое дерево для всех конструкций
@@ -22,6 +23,10 @@ namespace Modules;
 //декоратор-объект для SyntaxAnalysis
 public class SemanticalAnalyses : SyntaxTreeFactory
 {
+    readonly Semantic.SimpleType intType = new Semantic.SimpleType{Name="integer"};
+    readonly Semantic.SimpleType floatType = new Semantic.SimpleType{Name="float"};
+    readonly Semantic.SimpleType boolType = new Semantic.SimpleType{Name="boolean"};
+    readonly Semantic.SimpleType stringType = new Semantic.SimpleType{Name="string"};
     string[] SupportedTypes = ["integer", "float", "char", "string", "byte", "boolean"];
     SyntaxAnalysis _source;
     IdentifierStorage identifierStorage;
@@ -112,8 +117,11 @@ public class SemanticalAnalyses : SyntaxTreeFactory
         if (variableType is null) return;
         foreach (var v in localVariables)
         {
-            if (identifierStorage.Search(v) is IdentifierInfo t)
+            if (identifierStorage.Search(v) is IdentifierInfo t){
                 t.VariableType = variableType;
+                identifierStorage.Remove(v);
+                identifierStorage.Add(t);
+            }
         }
         // ident - TypeName
         // array[num_const..num_const] of ident
@@ -122,13 +130,172 @@ public class SemanticalAnalyses : SyntaxTreeFactory
     }
     #endregion
     #region Выражение
+    // мне очень жаль что я решил забить и не создавать код в которой не
+    // нарушался бы open/closed принцип, но мне лень переделывать это теперь
+    // соболезную всем кто будет читать это
+    // мой совет - реализуйте паттер visitor на конструкциях и внутри каждого
+    // класса реализуйте логику взаимодействия конструкций между собой
+    
+    //=, <>, <, >, <=, >=
+    //simple_expr {relation simple_expr}
     public override void Expression()
     {
         base.Expression();
+        if(AcceptedNode is not Expression e) return;
+        
+        var haveMissingType = 
+        e.Children
+        .Select(c=>c as ITypedNodeTerm)
+        .Where(t=>t is not null)
+        .Any(t=>t?.Type is null);
+
+        if(haveMissingType){
+            return;
+        }
+        if(e.Children.Count()==1){
+            e.Type=(e.Children.First() as SimpleExpression)?.Type;
+            return;
+        }
+        var prev = e.Children.First() as SimpleExpression;
+        var op = e.Children.ElementAt(1).Tokens()[0];
+        var next = e.Children.ElementAt(2) as SimpleExpression;
+        var pos = op.TextPosition;
+
+        if(op.Symbol==equal || op.Symbol==latergreater){
+            if(!prev?.Type?.Equals(next?.Type) ?? false){
+                InputOutput.LineErrors(pos.LineNumber).Add(
+                    new Error{
+                        ErrorCode= (long)ErrorCodes.UnsupportedOperation,
+                        Position=pos,
+                        SpecificErrorDescription=$"cannot apply relation operator to different types"
+                    }
+                );
+            }
+        }
+        var prevInt = intType.Equals(prev?.Type);
+        var prevFloat = floatType.Equals(prev?.Type);
+        var prevString = stringType.Equals(prev?.Type);
+        var prevbool = stringType.Equals(prev?.Type);
+        var prevNum = prevInt || prevFloat;
+
+        var nextInt = intType.Equals(next?.Type);
+        var nextFloat = floatType.Equals(next?.Type);
+        var nextString = stringType.Equals(next?.Type);
+        var nextbool = stringType.Equals(next?.Type);
+        var nextNum = nextInt || nextFloat;
+
+        if(prevNum && nextNum){
+            e.Type=boolType;
+            return;
+        }
+        InputOutput.LineErrors(pos.LineNumber).Add(
+            new Error{
+                ErrorCode= (long)ErrorCodes.UnsupportedOperation,
+                Position=pos,
+                SpecificErrorDescription=$"cannot apply numeric relation operator to non-numeric types"
+            }
+        );
+
     }
+    //[sign] term {add_op term}
     public override void SimpleExpression()
     {
         base.SimpleExpression();
+        if(AcceptedNode is not SimpleExpression simpleExpression) return;
+        var children = simpleExpression.Children.ToArray();
+        var first = simpleExpression.Children.First();
+        if(first is SignSymbolsCall s){
+            children=children.Skip(1).ToArray();
+            // +|- int
+            // +|- float
+            // else error
+            if(children[0] is not Term t) return;
+
+            if (!intType.Equals(t.Type) && !floatType.Equals(t.Type))
+            {
+                var pos = t.Tokens()[0].TextPosition;
+                InputOutput.LineErrors(pos.LineNumber).Add(
+                    new Error{
+                        ErrorCode= (long)ErrorCodes.UnsupportedOperation,
+                        Position=pos,
+                        SpecificErrorDescription=$"cannot apply operation"
+                    }
+                );
+                return;
+            }
+        }
+        // num_op = +|-
+        // bool_op = or
+        // int num_op int = int
+        // float num_op int = int
+        // int num_op float = int
+        // bool bool_op bool = bool
+        if(children[0] is not Term t1) return;
+        if(children.Length==1){
+            simpleExpression.Type=t1.Type;
+            return;
+        }
+        byte[] num_op = [plus,minus];
+        byte[] bool_op = [orsy];
+        var prev = t1;
+        foreach(var pair in children.Skip(1).Chunk(2)){
+            var op = pair[0] as AdditiveOperationCall;
+            if(op is null) continue;
+            var pos = op.Tokens()[0].TextPosition;
+            var next = pair[1] as Term;
+            var opPos = op?.Tokens()[0].TextPosition;
+            var opSy = op?.Tokens()[0].Symbol;
+            var prevFloat = floatType.Equals(prev?.Type);
+            var prevInt = intType.Equals(prev?.Type);
+            var prevBool = boolType.Equals(prev?.Type);
+            var nextFloat = floatType.Equals(next?.Type);
+            var nextInt = intType.Equals(next?.Type);
+            var nextBool = boolType.Equals(next?.Type);
+
+            var prevNum = prevFloat || prevInt;
+            var nextNum = nextFloat || nextInt;
+
+            if(num_op.Contains(opSy ?? 0)){
+                if(prevFloat && nextNum || prevNum && nextFloat){
+                    prev = new Term(simpleExpression){
+                        Type=floatType
+                    };
+                    continue;
+                }
+                if(prevInt && nextInt){
+                  prev = new Term(simpleExpression){
+                        Type=intType
+                    };
+                    continue;
+                }
+                #pragma warning disable
+                InputOutput.LineErrors(opPos.Value.LineNumber).Add(
+                    new Error{
+                        ErrorCode= (long)ErrorCodes.UnsupportedOperation,
+                        Position=opPos.Value,
+                        SpecificErrorDescription=$"cannot apply additive operation to given types"
+                    }
+                );
+                prev = null;
+                return;
+                #pragma warning enable
+            }
+            if(bool_op.Contains(opSy ?? 0)){
+                if(prevBool && nextBool){
+                    continue;
+                }
+                InputOutput.LineErrors(opPos.Value.LineNumber).Add(
+                    new Error{
+                        ErrorCode= (long)ErrorCodes.UnsupportedOperation,
+                        Position=opPos.Value,
+                        SpecificErrorDescription=$"cannot apply or operator on non-bool types"
+                    }
+                );
+                prev = null;
+                return;
+            }
+        }
+        simpleExpression.Type=prev.Type;
     }
     public override void RelationOperationCall()
     {
@@ -153,12 +320,30 @@ public class SemanticalAnalyses : SyntaxTreeFactory
             tr.Type=(tr.Children.First() as Factor ?? null)?.Type;
             return;
         }
-        var tokens = tr.Tokens();
-        var f1 =  tr.Children.ElementAt(0) as Factor;
-        var op1 = tr.Children.ElementAt(1) as MultiplicativeOperationCall;
-        var f2 =  tr.Children.ElementAt(2) as Factor;
-        if(f1 is null || op1 is null || f2 is null) return;
-        
+        var prev = tr.Children.First() as Factor;
+        foreach(var op_factor in tr.Children.Skip(1).Chunk(2)){
+            var op =  op_factor[0] as MultiplicativeOperationCall;
+            var next = op_factor[1] as Factor;
+            if(prev is null || op is null || next is null) return;
+            var type = DetermineType(prev,op,next);
+            prev = new Factor(tr)
+            {
+                Type = type
+            };
+            
+        }
+        tr.Type=prev?.Type;
+
+        Semantic.SimpleType? IsNumber(ITypedNodeTerm n){
+
+            if(intType.Equals(n.Type))
+                return intType;
+            if(floatType.Equals(n.Type))
+                return floatType;
+            if(boolType.Equals(n.Type))
+                return boolType;
+            return null;
+        }
         // mul_op   = { * / mod and div }
         // float_op = { * / mod }
         // bool_op  = { and }
@@ -170,28 +355,9 @@ public class SemanticalAnalyses : SyntaxTreeFactory
         // int / int               = float
         // boolean bool_op boolean = boolean
         // int int_op int             = int
-        // int int_op int             = int
-        // int int_op int             = int
         // else error
-
-        var intType = new Semantic.SimpleType{Name="integer"};
-        var floatType = new Semantic.SimpleType{Name="float"};
-        var boolType = new Semantic.SimpleType{Name="boolean"};
-
-        Semantic.SimpleType? IsNumber(ITypedTerm n){
-
-            if(intType.Equals(n.Type))
-                return intType;
-            if(floatType.Equals(n.Type))
-                return floatType;
-            if(boolType.Equals(n.Type))
-                return boolType;
-            return null;
-        }
-        var firstPos  = tokens[0].TextPosition;
-  
         Semantic.SimpleType? DetermineType(ITypedNodeTerm f1, Nodes.MultiplicativeOperationCall op_call, ITypedNodeTerm f2){
-            var f1Pos = f1.Tokens()[0].TextPosition;
+
             var f2Pos = f2.Tokens()[0].TextPosition;
 
             var f1Type = IsNumber(f1);
@@ -199,10 +365,10 @@ public class SemanticalAnalyses : SyntaxTreeFactory
             var opToken = op_call.Tokens()[0];
             var op = opToken.Symbol;
             if(f1Type is null){
-                InputOutput.LineErrors(f1Pos.LineNumber).Add(
+                InputOutput.LineErrors(opToken.TextPosition.LineNumber).Add(
                     new Error{
                         ErrorCode= (long)ErrorCodes.NotNumericTerm,
-                        Position=f1Pos,
+                        Position=opToken.TextPosition,
                     }
                 );
             }
@@ -233,13 +399,25 @@ public class SemanticalAnalyses : SyntaxTreeFactory
                     );
                     return null;
                 }
-                if(f1Type.Equals(floatType)){
+                if(f1Type.Equals(floatType) || f2Type.Equals(floatType)){
                     return floatType;
                 }
             }
+            if(op==slash)
+                return floatType;
+            if(f1Type.Equals(intType) && f2Type.Equals(intType) && int_op.Contains(op))
+                return intType;
 
-
-
+            if(f1Type.Equals(boolType) && f2Type.Equals(boolType) && bool_op.Contains(op)){
+                return boolType;
+            }
+            InputOutput.LineErrors(opToken.TextPosition.LineNumber).Add(
+                        new Error{
+                            ErrorCode= (long)ErrorCodes.CannotDeduceTypeFromOperation,
+                            Position=opToken.TextPosition,
+                        }
+                    );
+            return null;
         }
 
     }
@@ -252,11 +430,8 @@ public class SemanticalAnalyses : SyntaxTreeFactory
     {
         base.Factor();
         if(AcceptedNode is not Factor factor) return;
-        factor.Operation(n=>{
-            if(factor.Type is not null) return;
-            if(n is not ITypedTerm tr) return;
-            factor.Type=tr.Type;
-        });
+        IVariableType? t = null;
+        factor.Type = (factor.Children.FirstOrDefault(v=>v is ITypedNodeTerm) as ITypedNodeTerm)?.Type;
     }
     public override void Subexpression()
     {
@@ -297,6 +472,31 @@ public class SemanticalAnalyses : SyntaxTreeFactory
             return;
         }
         fv.Type=variableIdentifier.Value.VariableType;
+    }
+    public override void ConstantWithoutSignCall()
+    {
+        base.ConstantWithoutSignCall();
+        if(AcceptedNode is not ConstantWithoutSignCall c) return;
+        var constType = "";
+        c.Operation(n=>{
+            if(constType!="" || n is not Accept acn) return;
+            var sym = acn.Symbol;
+            switch(sym){
+                case intc:
+                    constType="integer";
+                break;
+                case floatc:
+                    constType="float";
+                break;
+                case stringc:
+                    constType="string";
+                break;
+            }
+        });
+        if(constType=="") return;
+        c.Type=new Semantic.SimpleType(){
+            Name=constType
+        };
     }
     // упрощенная обработка констант где мы читаем только l-value константы
     // intc floatc stringc

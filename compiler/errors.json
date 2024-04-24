@@ -16,5 +16,6 @@
     "14": "invalid array dimension",
     "15": "undefined variable",
     "16": "expression term must contain integer, float or boolean constants / variables",
-    "17": "operation is not supported"
+    "17": "operation is not supported",
+    "18": "cannot deduce type"
 }

@@ -1,7 +1,7 @@
 using Modules.Semantic;
 
 namespace Modules.Nodes;
-public class SimpleExpression : BaseNode, ITypedTerm
+public class SimpleExpression : BaseNode, ITypedNodeTerm
 {
     /// <summary>
     /// Simple expression type

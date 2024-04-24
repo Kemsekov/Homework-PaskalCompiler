@@ -19,5 +19,6 @@ public enum ErrorCodes{
     InvalidArrayDimension=14,
     UndefinedVariable = 15,
     NotNumericTerm = 16,
-    UnsupportedOperation=17
+    UnsupportedOperation=17,
+    CannotDeduceTypeFromOperation = 18
 }

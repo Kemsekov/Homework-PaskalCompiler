@@ -1,7 +1,7 @@
 using Modules.Semantic;
 
 namespace Modules.Nodes;
-public class Constant : BaseNode, ITypedTerm
+public class Constant : BaseNode, ITypedNodeTerm
 {
     /// <summary>
     /// Constant type

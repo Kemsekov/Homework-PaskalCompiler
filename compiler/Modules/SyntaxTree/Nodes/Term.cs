@@ -1,7 +1,7 @@
 using Modules.Semantic;
 
 namespace Modules.Nodes;
-public class Term : BaseNode, ITypedTerm
+public class Term : BaseNode, ITypedNodeTerm
 {
     /// <summary>
     /// Term type

@@ -1,7 +1,7 @@
 using Modules.Semantic;
 
 namespace Modules.Nodes;
-public class Factor : BaseNode, ITypedTerm
+public class Factor : BaseNode, ITypedNodeTerm
 {
     /// <summary>
     /// Factor type

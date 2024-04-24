@@ -24,7 +24,7 @@ public class MainHostedService : BackgroundService
     public void PrintProgramErrors()
     {
         //just run block of syntax analysis
-        SyntaxTreeFactory.StartBlock();
+        Semantic.StartBlock();
         System.Console.WriteLine("-------PROGRAM-------");
         //print program and errors
         var end = (ulong)InputOutput.Program.Lines.Length;

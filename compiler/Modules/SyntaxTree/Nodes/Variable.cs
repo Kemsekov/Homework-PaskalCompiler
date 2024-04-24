@@ -1,7 +1,7 @@
 using Modules.Semantic;
 
 namespace Modules.Nodes;
-public class Variable : BaseNode, ITypedTerm
+public class Variable : BaseNode, ITypedNodeTerm
 {
     
     /// <summary>
